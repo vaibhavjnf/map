@@ -5,16 +5,31 @@ import FireworksEffect from './components/FireworksEffect.vue'
 import LuckyMoney from './components/LuckyMoney.vue'
 import PeachBlossoms from './components/PeachBlossoms.vue'
 import SocialShare from './components/SocialShare.vue'
+import { ref, onMounted } from 'vue'
+const isMobile = ref(false)
+
+onMounted(() => {
+  isMobile.value = window.innerWidth <= 768
+})
 </script>
 
 <template>
   <main class="tet-app">
-    <FireworksEffect :launchSpeed="2" :sparkDensity="1.5" />
-    <PeachBlossoms />
-    <LuckyMoney />
-    <greeting-card />
-    <AudioPlayer />
-    <SocialShare />
+    <Suspense>
+      <template #default>
+        <div>
+          <FireworksEffect v-if="!isMobile" :launchSpeed="2" :sparkDensity="1.5" />
+          <PeachBlossoms />
+          <LuckyMoney />
+          <greeting-card />
+          <AudioPlayer />
+          <SocialShare />
+        </div>
+      </template>
+      <template #fallback>
+        <div>Loading...</div>
+      </template>
+    </Suspense>
   </main>
 </template>
 

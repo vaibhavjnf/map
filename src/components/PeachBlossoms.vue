@@ -14,6 +14,7 @@ import { ref, onMounted } from 'vue';
 
 interface BlossomStyle {
   left: string;
+  top: string;
   animationDuration: string;
   animationDelay: string;
   fontSize: string;
@@ -23,7 +24,8 @@ const blossoms = ref<{ style: BlossomStyle }[]>([]);
 
 const createBlossom = () => {
   const style = {
-    left: `${Math.random() * 120 - 10}vw`,
+    left: `${Math.random() * 160 - 30}vw`, 
+    top: '-10vh', 
     animationDuration: `${Math.random() * 4 + 3}s`,
     animationDelay: `${Math.random() * 2}s`,
     fontSize: `${Math.random() * 0.3 + 0.8}rem`
@@ -33,8 +35,9 @@ const createBlossom = () => {
 
 onMounted(() => {
   const isMobile = window.innerWidth <= 768;
-  const initialCount = isMobile ? 8 : 15;
-  const maxCount = isMobile ? 15 : 25;
+  const initialCount = isMobile ? 5 : 15;
+  const maxCount = isMobile ? 10 : 25;
+  const interval = isMobile ? 3000 : 2000;
 
   for (let i = 0; i < initialCount; i++) {
     createBlossom();
@@ -45,22 +48,25 @@ onMounted(() => {
       blossoms.value.shift();
     }
     createBlossom();
-  }, 2000);
+  }, interval);
 });
 </script>
 
 <style scoped>
 .peach-blossoms {
   position: fixed;
-  width: 100%;
-  height: 100vh;
+  width: 160vw;
+  height: 120vh;
   pointer-events: none;
   z-index: 1;
-  overflow: hidden;
+  overflow: visible; 
+  left: -30vw; 
+  top: -20vh; 
 }
 
 .blossom {
   position: absolute;
+  top: -50px;
   animation: falling linear infinite;
   filter: drop-shadow(0 0 3px rgba(255, 192, 203, 0.5));
   will-change: transform;
@@ -68,13 +74,13 @@ onMounted(() => {
 
 @keyframes falling {
   0% {
-    transform: translateY(-20vh) translateX(0) rotate(0deg) scale(1);
+    transform: translateY(0) translateX(0) rotate(0deg) scale(1);
   }
   50% {
-    transform: translateY(45vh) translateX(calc(5vw * var(--direction, 1))) rotate(180deg) scale(1.2);
+    transform: translateY(70vh) translateX(calc(15vw * var(--direction, 1))) rotate(180deg) scale(1.2);
   }
   100% {
-    transform: translateY(120vh) translateX(0) rotate(360deg) scale(1);
+    transform: translateY(140vh) translateX(0) rotate(360deg) scale(1);
   }
 }
 

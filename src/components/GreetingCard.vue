@@ -45,11 +45,16 @@ const wishes = [
 ]
 
 const toggleAnimation = () => {
-  isAnimating.value = true
-  currentWishIndex.value = (currentWishIndex.value + 1) % wishes.length
-  setTimeout(() => {
-    isAnimating.value = false
-  }, 1000)
+  if (!isAnimating.value) {
+    isAnimating.value = true
+    currentWishIndex.value = (currentWishIndex.value + 1) % wishes.length
+    
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        isAnimating.value = false
+      }, 500)
+    })
+  }
 }
 
 const countdown = ref({
@@ -105,12 +110,12 @@ onUnmounted(() => {
               0 0 15px rgba(255, 215, 0, 0.3);
   text-align: center;
   cursor: pointer;
-  width: clamp(300px, 90vw, 600px);
-  margin: 1rem;
+  width: clamp(280px, 85vw, 600px);
+  margin: 0.5rem;
   position: relative;
   overflow: hidden;
   backdrop-filter: blur(10px);
-  border: 3px solid #ffd700;
+  border: 2px solid #ffd700;
 }
 
 .card-content {
@@ -118,7 +123,7 @@ onUnmounted(() => {
 }
 
 .card-content.animate {
-  transform: scale(1.05);
+  animation: cardPulse 0.5s ease-out;
 }
 
 h1 {
@@ -199,8 +204,96 @@ p {
 @media (max-width: 480px) {
   .card {
     margin: 0.5rem;
-    padding: 1.5rem;
+    padding: 1rem;
+    transform: scale(0.95);
   }
+
+  h1 {
+    font-size: clamp(1.5rem, 7vw, 2rem);
+    margin-bottom: 0.5rem;
+  }
+
+  p {
+    font-size: clamp(0.9rem, 4vw, 1.1rem);
+    margin: 1rem 0;
+    padding: 0 0.5rem;
+    line-height: 1.4;
+  }
+
+  .countdown {
+    gap: 8px;
+    padding: 10px 5px;
+    margin: 0.5rem 0;
+  }
+
+  .time-block {
+    min-width: 40px;
+    padding: 2px;
+  }
+
+  .number {
+    font-size: clamp(1.2rem, 5vw, 1.8rem);
+  }
+
+  .label {
+    font-size: clamp(0.7rem, 3vw, 0.9rem);
+    margin-top: 2px;
+  }
+
+  .decoration {
+    font-size: clamp(1.2rem, 5vw, 2rem);
+    margin: 0.5rem 0;
+  }
+
+  .lanterns {
+    font-size: clamp(1.2rem, 5vw, 2rem);
+    margin-top: 1rem;
+    gap: 0.5rem;
+  }
+
+  .fireworks {
+    font-size: clamp(1.2rem, 5vw, 2rem);
+  }
+}
+
+@media (max-width: 320px) {
+  .card {
+    transform: scale(0.9);
+    padding: 0.8rem;
+  }
+
+  .countdown {
+    gap: 5px;
+  }
+
+  .time-block {
+    min-width: 35px;
+  }
+
+  .number {
+    font-size: clamp(1rem, 4vw, 1.5rem);
+  }
+
+  .label {
+    font-size: 0.7rem;
+  }
+}
+
+@keyframes cardPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.card * {
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 @media (min-width: 1024px) {

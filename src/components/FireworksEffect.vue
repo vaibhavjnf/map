@@ -18,16 +18,18 @@ const colors = {
 onMounted(() => {
   if (!fireworksContainer.value) return;
 
+  const isMobile = window.innerWidth <= 768;
+
   fireworks = new Fireworks(fireworksContainer.value, {
-    speed: 4,
+    speed: isMobile ? 2 : 4,
     acceleration: 1.05,
     friction: 0.95,
     gravity: 1,
-    particles: 100,
-    trace: 10,
-    explosion: 8,
+    particles: isMobile ? 50 : 100,
+    trace: isMobile ? 5 : 10,
+    explosion: isMobile ? 5 : 8,
     mouse: {
-      click: true,
+      click: !isMobile,
       move: false,
       max: 3
     },
@@ -43,7 +45,7 @@ onMounted(() => {
       min: 0,
       max: 100
     },
-    intensity: 25
+    intensity: isMobile ? 15 : 25
   });
 
   fireworks.start();

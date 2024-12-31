@@ -1,0 +1,73 @@
+{
+  // These tasks will run in order when initializing your CodeSandbox project.
+  "setupTasks": [
+    {
+      "command": "npm install",
+      "name": "Install Dependencies"
+    }
+  ],
+
+  // These tasks can be run from CodeSandbox. Running one will open a log in the app.
+  "tasks": {
+    "dev": {
+      "name": "dev",
+      "command": "npm run dev",
+      "runAtStart": true
+    },
+    "build": {
+      "name": "build",
+      "command": "npm run build",
+      "runAtStart": false
+    },
+    "preview": {
+      "name": "preview",
+      "command": "npm run preview",
+      "runAtStart": false
+    },
+    "test:unit": {
+      "name": "test:unit",
+      "command": "npm run test:unit",
+      "runAtStart": false
+    },
+    "test:e2e": {
+      "name": "test:e2e",
+      "command": "npm run test:e2e",
+      "runAtStart": false
+    },
+    "test:e2e:dev": {
+      "name": "test:e2e:dev",
+      "command": "npm run test:e2e:dev",
+      "runAtStart": false
+    },
+    "build-only": {
+      "name": "build-only",
+      "command": "npm run build-only",
+      "runAtStart": false
+    },
+    "type-check": {
+      "name": "type-check",
+      "command": "npm run type-check",
+      "runAtStart": false
+    },
+    "lint:oxlint": {
+      "name": "lint:oxlint",
+      "command": "npm run lint:oxlint",
+      "runAtStart": false
+    },
+    "lint:eslint": {
+      "name": "lint:eslint",
+      "command": "npm run lint:eslint",
+      "runAtStart": false
+    },
+    "lint": {
+      "name": "lint",
+      "command": "npm run lint",
+      "runAtStart": false
+    },
+    "format": {
+      "name": "format",
+      "command": "npm run format",
+      "runAtStart": false
+    }
+  }
+}

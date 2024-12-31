@@ -30,8 +30,10 @@ const luckyMessages = [
 
 interface EnvelopeStyle {
   left: string;
+  top: string;
   animationDuration: string;
   animationDelay: string;
+  '--direction': number;
 }
 
 interface Envelope {
@@ -40,15 +42,19 @@ interface Envelope {
   message: string;
 }
 
+
 const envelopes = ref<Envelope[]>([]);
 const showMessage = ref(false);
 const currentMessage = ref('');
 
 const createEnvelope = () => {
+  const randomDirection = Math.random() > 0.5 ? 1 : -1;
   const style: EnvelopeStyle = {
-    left: `${Math.random() * 120 - 10}vw`,
+    left: `${Math.random() * 160 - 30}vw`,
+    top: '-50px',
     animationDuration: `${Math.random() * 4 + 3}s`,
-    animationDelay: `${Math.random() * 2}s`
+    animationDelay: `${Math.random() * 2}s`,
+    '--direction': randomDirection 
   };
   const message = luckyMessages[Math.floor(Math.random() * luckyMessages.length)];
   envelopes.value.push({ style, opened: false, message });
@@ -59,16 +65,21 @@ const openEnvelope = (index: number) => {
     envelopes.value[index].opened = true;
     currentMessage.value = envelopes.value[index].message;
     showMessage.value = true;
-    setTimeout(() => {
-      showMessage.value = false;
 
-      envelopes.value = envelopes.value.filter((_, i) => i !== index);
-    }, 2000);
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        showMessage.value = false;
+        envelopes.value = envelopes.value.filter((_, i) => i !== index);
+      }, 2000);
+    });
   }
 };
 
 onMounted(() => {
-  for (let i = 0; i < 10; i++) {
+  const isMobile = window.innerWidth <= 768;
+  const initialEnvelopes = isMobile ? 5 : 10;
+
+  for (let i = 0; i < initialEnvelopes; i++) {
     createEnvelope();
   }
 });
@@ -77,15 +88,18 @@ onMounted(() => {
 <style scoped>
 .lucky-money-container {
   position: fixed;
-  width: 100%;
-  height: 100vh;
+  width: 160vw; 
+  height: 120vh;
   pointer-events: none;
   z-index: 2;
-  overflow: hidden;
+  overflow: visible; 
+  left: -30vw; 
+  top: -20vh;
 }
 
 .envelope {
   position: absolute;
+  top: -50px; 
   font-size: min(2rem, 8vw);
   padding: 5px;
   border-radius: 8px;
@@ -139,13 +153,13 @@ onMounted(() => {
 
 @keyframes falling {
   0% {
-    transform: translateY(-20vh) translateX(0) rotate(0deg) scale(1);
+    transform: translateY(0) translateX(0) rotate(0deg) scale(1);
   }
   50% {
-    transform: translateY(45vh) translateX(calc(10vw * var(--direction, 1))) rotate(180deg) scale(1.2);
+    transform: translateY(70vh) translateX(calc(20vw * var(--direction, 1))) rotate(180deg) scale(1.2);
   }
   100% {
-    transform: translateY(120vh) translateX(0) rotate(360deg) scale(1);
+    transform: translateY(140vh) translateX(0) rotate(360deg) scale(1);
   }
 }
 
@@ -174,11 +188,14 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .envelope {
+    font-size: min(1.5rem, 6vw);
     padding: 3px;
+    animation-duration: 4s !important;
   }
 
   .lucky-message {
-    padding: 15px 25px;
+    font-size: min(1.5rem, 5vw);
+    padding: 15px 20px;
   }
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <div class="audio-player">
+  <div class="audio-player" :class="{ 'playing': isPlaying }">
     <div class="song-info">
       <span class="music-icon">🎵</span>
       <div class="song-name-container">
@@ -33,6 +33,8 @@ const audio = new Audio(songs[0].path);
 const isPlaying = ref(false);
 const shouldMarquee = ref(false);
 const autoPlayTimeout = ref<number | null>(null);
+
+const isMobile = window.innerWidth <= 768;
 
 const togglePlay = () => {
   if (isPlaying.value) {
@@ -73,8 +75,10 @@ const checkTextOverflow = () => {
 
 onMounted(() => {
   checkTextOverflow();
-
-  playAudio();
+  
+  if (!isMobile) {
+    playAudio();
+  }
 });
 
 onUnmounted(() => {
@@ -214,16 +218,62 @@ audio.addEventListener('ended', () => {
 
 @media (max-width: 768px) {
   .audio-player {
-    bottom: 10px;
+    bottom: 75px; 
     right: 10px;
-    padding: 10px;
+    padding: 8px;
+    transform: scale(0.9);
+    border-width: 1px;
+  }
+
+  .song-info {
+    max-width: 100px;
+    padding: 5px 10px;
+    margin-bottom: 8px;
+    font-size: 12px;
+  }
+
+  .controls {
+    gap: 8px;
   }
 
   .control-btn {
-    width: 40px;
-    height: 40px;
-    font-size: 20px;
+    width: 35px;
+    height: 35px;
+    font-size: 16px;
   }
+
+  .music-icon {
+    font-size: 14px;
+  }
+
+  .song-name {
+    font-size: 0.8rem;
+  }
+
+  .audio-player:not(:hover):not(.playing) {
+    opacity: 0.7;
+    transform: scale(0.8);
+  }
+
+  .audio-player:hover,
+  .audio-player.playing {
+    opacity: 1;
+    transform: scale(0.9);
+  }
+
+  .song-name.marquee {
+    animation: marquee 8s linear infinite;
+  }
+
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-80%); }
+  }
+}
+
+.audio-player.playing {
+  border-color: #e74c3c;
+  box-shadow: 0 0 15px rgba(231, 76, 60, 0.3);
 }
 </style>
 
