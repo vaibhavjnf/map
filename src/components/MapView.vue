@@ -1,4 +1,6 @@
 <template>
+  <div class="map-background"></div>
+  <div class="map-grid"></div>
   <div id="map-container"></div>
 </template>
 
@@ -41,12 +43,18 @@ export default defineComponent({
     onMounted(() => {
       mapInstance.value = L.map('map-container', {
         scrollWheelZoom: true,
-        touchZoom: true
+        touchZoom: true,
+        fadeAnimation: true,
+        zoomAnimation: true,
+        markerZoomAnimation: true
       }).setView([21.0285, 105.8542], 13)
       
       L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png', {
         maxZoom: 20,
-        attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>'
+        minZoom: 3, // Add minimum zoom
+        attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>',
+        noWrap: true, // Prevent tile wrapping
+        bounds: [[-90, -180], [90, 180]] // Limit map bounds
       }).addTo(mapInstance.value)
 
       const ZOOM_THRESHOLD = 6; 
@@ -123,4 +131,21 @@ export default defineComponent({
 </script>
 
 <style scoped>
+#map-container {
+  height: 100vh;
+  width: 100vw;
+  position: fixed;
+  background: transparent;
+}
+
+/* Add transition for smooth zoom */
+:deep(.leaflet-fade-anim .leaflet-tile) {
+  will-change: opacity;
+  transition: opacity 0.2s linear;
+}
+
+:deep(.leaflet-zoom-anim .leaflet-zoom-animated) {
+  will-change: transform;
+  transition: transform 0.25s cubic-bezier(0,0,0.25,1);
+}
 </style>
