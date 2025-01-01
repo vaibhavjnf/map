@@ -1,11 +1,12 @@
 <template>
   <button class="gps-button" @click="handleGpsClick">
-    <img src="/public/assets/GPS.png" alt="GPS" class="gps-icon">
+    <span class="material-icons">my_location</span>
   </button>
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
+import { toast } from './Toast.vue'
 
 export default defineComponent({
   name: 'GpsButton',
@@ -19,14 +20,15 @@ export default defineComponent({
               latitude: position.coords.latitude,
               longitude: position.coords.longitude
             })
+            toast.show('Location updated', 'success')
           },
           (error) => {
             console.error('Error getting location:', error)
-            alert('Unable to get your location')
+            toast.show('Unable to get your location', 'error')
           }
         )
       } else {
-        alert('GPS not supported in your browser')
+        toast.show('GPS not supported in your browser', 'error')
       }
     }
 
@@ -41,20 +43,33 @@ export default defineComponent({
 .gps-button {
   position: fixed;
   bottom: 20px;
-  right: 23px;
+  right: 10px; 
   z-index: 1000;
-  padding: 13px;
-  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
   border: none;
-  margin: 5px;
   background: white;
   box-shadow: 0 2px 5px rgba(0,0,0,0.2);
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
 }
 
-.gps-icon {
-  width: 26px;
-  height: 26px;
-  display: block;
+.gps-button:hover {
+  background: #f5f5f5;
+}
+
+.gps-button .material-icons {
+  font-size: 20px;
+  color: #555;
+}
+
+@media (max-width: 768px) {
+  .gps-button {
+    right: 10px;
+  }
 }
 </style>

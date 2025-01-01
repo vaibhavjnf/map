@@ -29,3 +29,8 @@ coverage
 
 *.tsbuildinfo
 .vscode
+
+# Environment files
+.env
+.env.local
+.env.*.local
