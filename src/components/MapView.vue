@@ -155,6 +155,8 @@
             if (!lat || !lng) return 
   
             const name = place.tags.name
+            const distance = center.distanceTo(L.latLng(lat, lng)).toFixed(0)
+
             const marker = L.marker([lat, lng], {
               icon: L.divIcon({
                 className: 'place-marker',
@@ -170,8 +172,15 @@
             })
               .addTo(mapInstance.value!)
               .bindPopup(`
-                <strong>${name}</strong><br>
-                ${place.tags.amenity || place.tags.leisure || category}
+                <div style="font-family: 'Inter', sans-serif;">
+                  <strong style="font-size: 14px;">${name}</strong><br>
+                  <span style="color: #666; font-size: 12px;">
+                    ${place.tags.amenity || place.tags.leisure || category}
+                  </span><br>
+                  <span style="color: #4CAF50; font-size: 13px; font-weight: 500;">
+                    ${formatDistance(parseInt(distance))}
+                  </span>
+                </div>
               `)
   
             placeMarkers.value.push(marker)
@@ -185,6 +194,13 @@
           console.error('Error fetching nearby places:', error)
           toast.show('Error fetching places. Please try again.', 'error')
         }
+      }
+
+      const formatDistance = (meters: number): string => {
+        if (meters < 1000) {
+          return `${meters}m away`
+        }
+        return `${(meters / 1000).toFixed(1)}km away`
       }
   
       onMounted(() => {
@@ -291,7 +307,8 @@
         updateMapStyle,
         updateZoom,
         toggleTraffic,
-        showNearbyPlaces
+        showNearbyPlaces,
+        formatDistance
       }
     }
   })
@@ -305,7 +322,6 @@
     background: transparent;
   }
   
-  /* Add transition for smooth zoom */
   :deep(.leaflet-fade-anim .leaflet-tile) {
     will-change: opacity;
     transition: opacity 0.2s linear;
@@ -325,7 +341,7 @@
     margin-left: -12px !important;
     margin-top: -24px !important;
     pointer-events: auto !important;
-    z-index: 1000 !important; /* Đảm bảo marker luôn ở trên cùng */
+    z-index: 1000 !important; 
   }
   
   :deep(.place-marker .material-icons) {
@@ -342,7 +358,16 @@
     transform: scale(1.2);
   }
 
-  /* Ẩn nút zoom trên mobile */
+  :deep(.leaflet-popup-content) {
+    margin: 10px 12px;
+    line-height: 1.5;
+  }
+
+  :deep(.leaflet-popup-content-wrapper) {
+    border-radius: 8px;
+    padding: 2px;
+  }
+
   @media (max-width: 768px) {
     :deep(.leaflet-control-zoom) {
       display: none;
