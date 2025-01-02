@@ -1,6 +1,9 @@
 <template>
   <MapView ref="mapView" />
-  <SearchBox @select-location="handleSearchSelect" />
+  <SearchBox 
+    :currentLocation="currentLocation" 
+    @select-location="handleSearchSelect" 
+  />
   <GpsButton @location="handleLocation" />
   <MapOptions 
     @update-style="handleStyleUpdate"
@@ -37,11 +40,16 @@ export default defineComponent({
   setup() {
     const mapView = ref<InstanceType<typeof MapView> | null>(null)
     const exploreNearby = ref<InstanceType<typeof ExploreNearby> | null>(null)
+    const currentLocation = ref<{ lat: number; lng: number } | null>(null)
     
     const handleLocation = ({ latitude, longitude }: { latitude: number; longitude: number }) => {
+      currentLocation.value = { lat: latitude, lng: longitude }
+      // Cập nhật ExploreNearby trước để tránh delay
+      exploreNearby.value?.updateLocation({ lat: latitude, lng: longitude })
+      
+      // Sau đó mới cập nhật map view
       mapView.value?.centerMap(latitude, longitude)
       mapView.value?.addMarker(latitude, longitude, 'You are here')
-      exploreNearby.value?.updateLocation({ lat: latitude, lng: longitude })
     }
 
     const handleGpsRequest = () => {
@@ -81,14 +89,21 @@ export default defineComponent({
       mapView.value?.toggleTraffic(show)
     }
 
-    const handleShowPlaces = ({ category, radius, random, center }: { 
+    const handleShowPlaces = ({ category, radius, random, center, results }: { 
       category: string;
       radius: number;
       random: boolean;
       center: { lat: number; lng: number };
+      results: any[];
     }) => {
       if (mapView.value) {
-        mapView.value.showNearbyPlaces(L.latLng(center.lat, center.lng), category, radius, random)
+        mapView.value.showNearbyPlaces({
+          results,
+          center: L.latLng(center.lat, center.lng),
+          category,
+          radius,
+          random
+        })
       }
     }
 
@@ -104,7 +119,8 @@ export default defineComponent({
       handleSearchSelect,
       handleTrafficToggle,
       handleShowPlaces,
-      handleGpsRequest
+      handleGpsRequest,
+      currentLocation
     }
   }
 })

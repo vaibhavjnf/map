@@ -18,7 +18,7 @@ export const toast = {
     this.type.value = type
     setTimeout(() => {
       this.message.value = ''
-    }, 3000)
+    }, 2000)
   }
 }
 
@@ -49,7 +49,7 @@ export default defineComponent({
   padding: 12px 24px;
   border-radius: 8px;
   background: white;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -85,7 +85,7 @@ export default defineComponent({
 
 .toast-enter-active,
 .toast-leave-active {
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .toast-enter-from,

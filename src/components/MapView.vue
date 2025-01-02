@@ -11,12 +11,22 @@
   import 'leaflet/dist/leaflet.css'
   import '../styles/map.css'
   import { toast } from './Toast.vue'
+import { debounce } from 'lodash'
+import { MarkerManager } from '../utils/MarkerManager'
   
   declare const VITE_STADIA_API_KEY: string
   declare const VITE_THUNDERFOREST_API_KEY: string
   declare const VITE_DEFAULT_LAT: string
   declare const VITE_DEFAULT_LNG: string
   declare const VITE_DEFAULT_ZOOM: string
+
+  interface ShowNearbyPlacesParams {
+    results: any[];
+    center: { lat: number; lng: number };
+    category: string;
+    radius: number;
+    random: boolean;
+  }
   
   export default defineComponent({
     name: 'MapView',
@@ -27,10 +37,11 @@
       const currentStyle = ref('alidade_smooth')
       const trafficLayer: Ref<LayerGroup | null> = ref(null)
       const placeMarkers: Ref<Marker[]> = ref([])
+      const markerManager = ref<MarkerManager>()
 
       const updateMapStyle = (style: string) => {
         if (mapInstance.value) {
-          // Lưu lại vị trí marker hiện tại trước khi thay đổi style
+
           const currentPos = currentMarker.value?.getLatLng()
           
           const tileLayer = L.tileLayer(`https://tiles.stadiamaps.com/tiles/${style}/{z}/{x}/{y}{r}.png`, {
@@ -46,7 +57,6 @@
   
           tileLayer.addTo(mapInstance.value);
 
-          // Cập nhật lại marker sau khi thay đổi style
           if (currentPos && currentMarker.value) {
             currentMarker.value.setLatLng(currentPos);
           }
@@ -106,101 +116,60 @@
         placeMarkers.value = []
       }
 
-      const showNearbyPlaces = async (center: LatLng, category: string, radius: number, random = false) => {
-        clearPlaceMarkers()
+      const showNearbyPlaces = async (params: ShowNearbyPlacesParams) => {
+        if (!markerManager.value) return
+      
+        markerManager.value.clearMarkers()
+  
+        const { results, center, category } = params
         
-        const categoryQuery = category.includes('=') 
-          ? `["${category.split('=')[0]}"="${category.split('=')[1]}"]`
-          : `["amenity"="${category}"]`;
-
-        const query = `
-          [out:json][timeout:25];
-          (
-            node${categoryQuery}(around:${radius},${center.lat},${center.lng});
-            way${categoryQuery}(around:${radius},${center.lat},${center.lng});
-            relation${categoryQuery}(around:${radius},${center.lat},${center.lng});
-          );
-          out body;
-          >;
-          out skel qt;
-        `
+        if (!results || results.length === 0) {
+          toast.show('No places found in this area', 'info')
+          return
+        }
   
-        try {
-          const response = await fetch('https://overpass-api.de/api/interpreter', {
-            method: 'POST',
-            body: query
-          })
-  
-          if (!response.ok) throw new Error('Network response was not ok')
-
-          const data = await response.json()
-          let places = data.elements.filter((place: any) => 
-            place.tags && place.tags.name 
-          )
-  
-          if (places.length === 0) {
-            toast.show('No places found in this area', 'info')
-            return
-          }
-  
-          if (random) {
-            places = places
-              .sort(() => Math.random() - 0.5)
-              .slice(0, 5)
-          }
-  
-          places.forEach((place: any) => {
-            const lat = place.lat || place.center?.lat
-            const lng = place.lon || place.center?.lon
-            if (!lat || !lng) return 
-  
-            const name = place.tags.name
-            const distance = center.distanceTo(L.latLng(lat, lng)).toFixed(0)
-
-            const marker = L.marker([lat, lng], {
+        results.forEach((place: any, index: number) => {
+          const markerId = `place_${index}`
+          const marker = markerManager.value!.addMarker(markerId, 
+            L.latLng(place.lat, place.lng),
+            {
               icon: L.divIcon({
-                className: 'place-marker',
+                className: `place-marker ${place.source}`,
                 html: `<span class="material-icons">place</span>`,
                 iconSize: [24, 24],
                 iconAnchor: [12, 24]
-              }),
-              autoPan: false,         
-              riseOnHover: true,      
-              riseOffset: 250,         
-              interactive: true,     
-              bubblingMouseEvents: false 
-            })
-              .addTo(mapInstance.value!)
-              .bindPopup(`
-                <div style="font-family: 'Inter', sans-serif;">
-                  <strong style="font-size: 14px;">${name}</strong><br>
-                  <span style="color: #666; font-size: 12px;">
-                    ${place.tags.amenity || place.tags.leisure || category}
-                  </span><br>
-                  <span style="color: #4CAF50; font-size: 13px; font-weight: 500;">
-                    ${formatDistance(parseInt(distance))}
-                  </span>
-                </div>
-              `)
+              })
+            }
+          )
   
-            placeMarkers.value.push(marker)
-          })
+          marker.bindPopup(`
+            <div style="font-family: 'Inter', sans-serif;">
+              <strong style="font-size: 14px;">${place.name}</strong>
+              <div style="color: #666; font-size: 12px;">
+                Source: ${place.source}
+              </div>
+              <div style="color: #4CAF50; margin-top: 4px; font-size: 13px;">
+                ${formatDistance(L.latLng(center.lat, center.lng)
+                  .distanceTo(L.latLng(place.lat, place.lng)))}
+              </div>
+            </div>
+          `)
+        })
   
-          if (placeMarkers.value.length > 0) {
-            const bounds = L.latLngBounds(placeMarkers.value.map(marker => marker.getLatLng()))
-            mapInstance.value?.fitBounds(bounds, { padding: [50, 50] })
-          }
-        } catch (error) {
-          console.error('Error fetching nearby places:', error)
-          toast.show('Error fetching places. Please try again.', 'error')
+        if (results.length > 0) {
+          const bounds = L.latLngBounds(results.map(r => L.latLng(r.lat, r.lng)))
+          mapInstance.value?.fitBounds(bounds, { padding: [50, 50] })
         }
       }
 
       const formatDistance = (meters: number): string => {
+
+        meters = Math.round(meters)
         if (meters < 1000) {
-          return `${meters}m away`
+          return `${meters}m`
         }
-        return `${(meters / 1000).toFixed(1)}km away`
+
+        return `${(meters / 1000).toFixed(1)}km`
       }
   
       onMounted(() => {
@@ -210,20 +179,34 @@
           fadeAnimation: true,
           zoomAnimation: true,
           markerZoomAnimation: true,
-          zoomControl: false 
+          zoomControl: false,
+          preferCanvas: true, 
+          zoomSnap: 0.5, 
+          zoomDelta: 0.5,
+          wheelDebounceTime: 150, 
+          bounceAtZoomLimits: false, 
+          maxZoom: 18, 
+          renderer: L.canvas() 
         }).setView([
           Number(import.meta.env.VITE_DEFAULT_LAT), 
           Number(import.meta.env.VITE_DEFAULT_LNG)
         ], Number(import.meta.env.VITE_DEFAULT_ZOOM))
         
         L.tileLayer(`https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=${import.meta.env.VITE_STADIA_API_KEY}`, {
-          maxZoom: 20,
+          maxZoom: 18,
           minZoom: 3,
-          attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>',
+          tileSize: 512, 
+          zoomOffset: -1,
+          crossOrigin: true,
+          keepBuffer: 2,
+          updateWhenIdle: true, 
+          updateWhenZooming: false,
           noWrap: true, 
           bounds: [[-90, -180], [90, 180]] 
         }).addTo(mapInstance.value)
   
+        markerManager.value = new MarkerManager(mapInstance.value)
+
         const ZOOM_THRESHOLD = 6; 
   
         const createIslandLabel = (text: string) => {
@@ -274,30 +257,20 @@
       }
   
       const addMarker = (latitude: number, longitude: number, popupText: string) => {
-        if (mapInstance.value) {
-          if (currentMarker.value) {
-            currentMarker.value.remove()
-          }
-  
-          lastPosition.value = L.latLng(latitude, longitude)
-          currentMarker.value = L.marker(lastPosition.value, {
-            autoPan: false,
-            interactive: true,
-            zIndexOffset: 1000 
-          })
-            .addTo(mapInstance.value)
-            .bindPopup(popupText)
+        if (!mapInstance.value || !markerManager.value) return
 
-          mapInstance.value.on('zoomend moveend', () => {
-            if (lastPosition.value && currentMarker.value) {
-              requestAnimationFrame(() => {
-                if (currentMarker.value) {
-                  currentMarker.value.setLatLng(lastPosition.value!)
-                }
-              })
-            }
+        const latlng = L.latLng(latitude, longitude)
+        const marker = markerManager.value.addMarker('gps', latlng, {
+          zIndexOffset: 1000,
+          icon: L.divIcon({
+            className: 'gps-marker',
+            html: '<span class="material-icons">my_location</span>',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
           })
-        }
+        }, true) // Set isSpecial = true
+
+        marker.bindPopup(popupText)
       }
   
       return {
@@ -348,14 +321,12 @@
     color: #E91E63;
     font-size: 24px;
     filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
-    transition: transform 0.2s ease;
-    transform-origin: bottom center;
     position: relative;
     z-index: 1;
   }
 
   :deep(.place-marker:hover .material-icons) {
-    transform: scale(1.2);
+    transform: none;
   }
 
   :deep(.leaflet-popup-content) {
@@ -372,5 +343,29 @@
     :deep(.leaflet-control-zoom) {
       display: none;
     }
+  }
+
+  :deep(.place-marker.google) .material-icons {
+    color: #4285F4;
+  }
+
+  :deep(.place-marker.here) .material-icons {
+    color: #00AFD7;
+  }
+
+  :deep(.place-marker.openstreetmap) .material-icons {
+    color: #7EBC6F;
+  }
+
+  :deep(.gps-marker) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  :deep(.gps-marker .material-icons) {
+    color: #1976D2;
+    font-size: 24px;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
   }
   </style>
