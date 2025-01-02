@@ -41,13 +41,11 @@ export const auth = {
         throw new Error('Email không tồn tại');
       }
 
-      // Kiểm tra password phải tồn tại
       if (!user.password) {
         console.error('User has no password:', email);
         throw new Error('Lỗi xác thực');
       }
 
-      // Log để debug (không log password gốc)
       console.log('Login check:', {
         email,
         hasPassword: !!user.password,
@@ -64,13 +62,12 @@ export const auth = {
       });
 
       if (!passwordMatch) {
-        // Clear remembered login on failed attempts
+   
         localStorage.removeItem('remembered_email');
         localStorage.removeItem('remembered_password');
         throw new Error('Mật khẩu không chính xác');
       }
 
-      // Update user session
       await db.updateUser(user.id, {
         lastLoginAt: new Date().toISOString()
       });
@@ -83,7 +80,7 @@ export const auth = {
       isAuthenticated.value = true;
 
       const token = this.generateToken(user.id);
-      cookies.set('auth_token', token, { expires: 7 }); // Cookie expires in 7 days
+      cookies.set('auth_token', token, { expires: 7 });
       localStorage.setItem('userId', user.id);
 
       return true;
@@ -117,7 +114,6 @@ export const auth = {
         throw new Error('Email đã được sử dụng');
       }
 
-      // Hash password before creating user
       const hashedPassword = await hashPassword(password);
       console.log('Registration password hash length:', hashedPassword.length);
 
@@ -128,17 +124,15 @@ export const auth = {
         lastLoginAt: new Date().toISOString()
       });
 
-      // Verify the stored password hash
       const storedUser = await db.findUserByEmail(email);
       console.log('Stored user password verification:', {
         hasStoredPassword: !!storedUser?.password,
         passwordLength: storedUser?.password?.length
       });
 
-      // Then try to send OTP
       const otpSent = await this.sendVerificationOTP(email, user.id);
       if (!otpSent) {
-        // Don't clear all data, just mark user as unverified
+      
         throw new Error('Không thể gửi mã xác thực, vui lòng thử lại sau');
       }
 
@@ -156,11 +150,9 @@ export const auth = {
         throw new Error('Invalid or expired OTP code');
       }
 
-      // Tìm user và thêm credits
       const user = await db.findUserByEmail(email);
       if (!user) throw new Error('User not found');
 
-      // Thêm credits và kiểm tra thành công
       await db.addCredits(user.id, 100);
       const updatedUser = await db.getUser(user.id);
       
@@ -177,16 +169,14 @@ export const auth = {
         credits: updatedUser.aiCredits
       });
 
-      // Cập nhật currentUser với credits mới
       currentUser.value = {
         ...updatedUser,
         lastLoginAt: new Date(updatedUser.lastLoginAt)
       };
       isAuthenticated.value = true;
 
-      // Set token và lưu user ID
       const token = this.generateToken(user.id);
-      cookies.set('auth_token', token);
+      cookies.set('auth_token', token, { expires: 7 });
       localStorage.setItem('userId', user.id);
 
       return true;
@@ -201,7 +191,7 @@ export const auth = {
     isAuthenticated.value = false;
     cookies.remove('auth_token');
     localStorage.removeItem('userId');
-    // Don't clear remembered login on logout
+ 
   },
 
   async checkAuth() {
@@ -216,7 +206,6 @@ export const auth = {
         return;
       } catch (error) {
         console.error('Auto login failed:', error);
-        // Clear remembered credentials if auto login fails
         localStorage.removeItem('remembered_email');
         localStorage.removeItem('remembered_password');
       }
@@ -233,7 +222,7 @@ export const auth = {
           isAuthenticated.value = true
           
           if (token) {
-            cookies.set('auth_token', userId)
+            cookies.set('auth_token', userId, { expires: 7 })
           }
         }
       } catch (error) {

@@ -6,7 +6,7 @@ const COOKIE_OPTIONS = {
 }
 
 export const cookies = {
-  set(name: string, value: string) {
+  set(name: string, value: string, p0: { expires: number }) {
     document.cookie = `${name}=${value}; ${Object.entries(COOKIE_OPTIONS)
       .map(([key, val]) => `${key}=${val}`)
       .join('; ')}`
