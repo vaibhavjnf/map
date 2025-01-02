@@ -25,6 +25,15 @@
           >
         </div>
 
+        <div class="remember-me">
+          <input 
+            type="checkbox" 
+            id="remember" 
+            v-model="rememberMe"
+          >
+          <label for="remember">Ghi nhớ đăng nhập</label>
+        </div>
+
         <button type="submit" class="submit-btn">
           {{ isLogin ? 'Đăng nhập' : 'Đăng ký' }}
         </button>
@@ -46,7 +55,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref } from 'vue'
+import { defineComponent, ref, onMounted } from 'vue'
 import { auth } from '../utils/auth'
 import { toast } from './Toast.vue'
 
@@ -57,10 +66,22 @@ export default defineComponent({
     const isLogin = ref(true)
     const email = ref('')
     const password = ref('')
+    const rememberMe = ref(false)
 
     const toggleMode = () => {
       isLogin.value = !isLogin.value
     }
+
+    // Load saved credentials
+    onMounted(() => {
+      const savedEmail = localStorage.getItem('remembered_email')
+      const savedPassword = localStorage.getItem('remembered_password')
+      if (savedEmail && savedPassword) {
+        email.value = savedEmail
+        password.value = atob(savedPassword) // decode base64
+        rememberMe.value = true
+      }
+    })
 
     const handleSubmit = async () => {
       try {
@@ -69,6 +90,15 @@ export default defineComponent({
           : await auth.register(email.value, password.value)
 
         if (success) {
+          // Save credentials if remember me is checked
+          if (rememberMe.value) {
+            localStorage.setItem('remembered_email', email.value)
+            localStorage.setItem('remembered_password', btoa(password.value)) // encode base64
+          } else {
+            localStorage.removeItem('remembered_email')
+            localStorage.removeItem('remembered_password')
+          }
+
           toast.show(
             isLogin.value ? 'Đăng nhập thành công!' : 'Đăng ký thành công!', 
             'success'
@@ -85,6 +115,7 @@ export default defineComponent({
       isLogin,
       email,
       password,
+      rememberMe,
       toggleMode,
       handleSubmit
     }
@@ -182,6 +213,25 @@ export default defineComponent({
   padding: 12px;
   border-radius: 8px;
   color: #1A73E8;
+}
+
+.remember-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.remember-me input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.remember-me label {
+  color: #666;
+  font-size: 14px;
+  cursor: pointer;
 }
 
 h2 {

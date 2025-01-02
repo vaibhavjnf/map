@@ -36,9 +36,10 @@
           @keydown.enter.exact.prevent="sendMessage"
           :rows="1"
           ref="inputField"
+          :disabled="isProcessing"
         ></textarea>
-        <button type="submit" :disabled="!userInput.trim()">
-          <span class="material-icons">send</span>
+        <button type="submit" :disabled="!userInput.trim() || isProcessing">
+          <span class="material-icons">{{ isProcessing ? 'hourglass_empty' : 'send' }}</span>
         </button>
       </form>
     </div>
@@ -56,24 +57,15 @@
 import { defineComponent, ref, nextTick, watch, onMounted } from 'vue'
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import { activeMenu, setActiveMenu } from '../utils/menuState'
-import { processUserInput, generateResponse } from '../utils/aiTraining'
 import { auth, currentUser, isAuthenticated } from '../utils/auth'
 import AuthModal from './AuthModal.vue'
-import { systemPrompts, formatPrompt } from '../utils/prompts'
+import { systemPrompts } from '../utils/prompts'
 import { db } from '../utils/database' 
 
 interface ChatMessage {
   role: 'user' | 'model'
   text: string
   loading?: boolean
-}
-
-interface EntityType {
-  place?: string
-  category?: string
-  start?: string
-  end?: string
-  coordinates?: number[]; 
 }
 
 export default defineComponent({
@@ -91,22 +83,24 @@ export default defineComponent({
     const chat = model.startChat()
     const showAuth = ref(false)
     const chatInitialized = ref(false)
+    const isProcessing = ref(false)
+    const cooldownTime = 1000 
 
     const initializeChat = async () => {
       if (!chatInitialized.value && currentUser.value?.id) {
-    
         const previousMessages = db.getUserMessages(currentUser.value.id)
-        messages.value = previousMessages.map(msg => ({
-          role: msg.role,
-          text: msg.content
-        }))
+        
+        if (!previousMessages.length) {
+          addMessage('model', 'Xin chào! Tôi là AKI BOT - Trợ lý bản đồ AI được tạo bởi Ngọc Từ. Rất vui được giúp đỡ bạn!')
+        } else {
+          messages.value = previousMessages.map(msg => ({
+            role: msg.role,
+            text: msg.content
+          }))
+        }
 
         await chat.sendMessage(systemPrompts.chatbot)
         chatInitialized.value = true
-        
-        if (!previousMessages.length) {
-          addMessage('model', 'Xin chào! Tôi là AKI BOT. Tôi có thể giúp gì cho bạn?')
-        }
       }
     }
 
@@ -116,6 +110,9 @@ export default defineComponent({
       } else {
         setActiveMenu('chat')
         await initializeChat() 
+        nextTick(() => {
+          scrollToBottom()
+        })
       }
     }
 
@@ -129,9 +126,22 @@ export default defineComponent({
       }
     }
 
+    const typeMessage = async (text: string, delay: number = 30): Promise<string> => {
+      let result = ''
+      for (let i = 0; i < text.length; i++) {
+        result += text[i]
+        messages.value[messages.value.length - 1].text = result
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
+      return result
+    }
+
     const addMessage = async (role: 'user' | 'model', text: string) => {
- 
-      messages.value.push({ role, text })
+      messages.value.push({ role, text: role === 'model' ? '' : text })
+
+      if (role === 'model') {
+        await typeMessage(text)
+      }
 
       if (currentUser.value?.id) {
         await db.saveUserMessage(currentUser.value.id, {
@@ -141,9 +151,7 @@ export default defineComponent({
       }
 
       nextTick(() => {
-        if (messagesContainer.value) {
-          messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-        }
+        scrollToBottom()
       })
     }
 
@@ -151,103 +159,99 @@ export default defineComponent({
       return text.replace(/\n/g, '<br>')
     }
 
-    const systemPrompt = `You are an AI map assistant named AKI BOT.
-Your main features:
-- Help users find locations
-- Provide information about places
-- Suggest nearby places to explore
-- Assist with navigation
-
-When asked for your name, always respond with "My name is AKI BOT, I'm your AI map assistant!"
-
-Please be concise and friendly in your responses. For location-related questions, suggest using the map's features.
-Format location suggestions like this: [LOCATION]name|latitude|longitude[/LOCATION]`
-
-    const handleUserIntent = async (message: string) => {
-      const analysis = processUserInput(message)
-      console.log('Intent analysis:', analysis)
-
-      if (analysis.intent === 'identity') {
-        return "My name is AKI BOT, I'm your AI map assistant!"
+    const handleUserMessage = async (message: string) => {
+      if (!isAuthenticated.value) {
+        showAuth.value = true
+        return
       }
-
-      if (analysis.intent && analysis.entities) {
-        const response = generateResponse(analysis.intent, analysis.entities)
-        
-        if (analysis.intent === 'find_place' && (analysis.entities as EntityType).coordinates) {
-          const [lat, lng] = (analysis.entities as EntityType).coordinates
-          emit('center-map', { lat, lng, zoom: 16 })
-        }
-        
-        return response
-      }
-
+    
       try {
+        addMessage('user', message)
+        messages.value.push({ role: 'model', text: '', loading: true })
+    
         const result = await chat.sendMessage(message)
-        return result.response.text()
+        const responseText = result.response.text()
+        
+        const locationPattern = /\[LOCATION\](.*?)\|(.*?)\|(.*?)\[\/LOCATION\]/g
+        let match
+    
+        while ((match = locationPattern.exec(responseText)) !== null) {
+          const [_, name, lat, lng] = match
+          emit('search-location', {
+            name,
+            latitude: parseFloat(lat),
+            longitude: parseFloat(lng)
+          })
+        }
+    
+        messages.value.pop()
+        addMessage('model', responseText)
+    
       } catch (error) {
-        console.error('AI processing error:', error) 
-        return 'Xin lỗi, tôi không hiểu yêu cầu của bạn. Bạn có thể thử hỏi về các địa điểm hoặc dịch vụ cụ thể?'
+        console.error('Chat error:', error)
+        messages.value.pop()
+        addMessage('model', 'Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại.')
       }
     }
 
     const sendMessage = async () => {
+      if (isProcessing.value || !userInput.value.trim()) return;
+      
       try {
-        if (!genAI || !model || !chat) {
-          console.error('AI service not initialized');
-          addMessage('model', 'AI service is currently unavailable. Please check the API key configuration.');
-          return;
-        }
+        isProcessing.value = true;
 
         if (!isAuthenticated.value) {
           showAuth.value = true;
           return;
         }
 
-        const message = userInput.value.trim();
-        if (!message) return;
-
         if (!await auth.useAICredits(1)) {
           addMessage('model', 'You have run out of AI credits. Please purchase more to continue.');
           return;
         }
 
+        if (!await db.checkRateLimit(currentUser.value!.id)) {
+          addMessage('model', 'Bạn đang gửi tin nhắn quá nhanh. Vui lòng đợi một chút và thử lại.');
+          return;
+        }
+
+        if (userInput.value.length > 200) {
+          addMessage('model', 'Tin nhắn của bạn quá dài. Vui lòng giữ dưới 200 ký tự.');
+          return;
+        }
+
         if (!messages.value.length) {
-          await chat.sendMessage(systemPrompts.chatbot)
+          await chat.sendMessage(systemPrompts.chatbot);
         }
 
-        addMessage('user', message)
-        userInput.value = ''
-        messages.value.push({ role: 'model', text: '', loading: true })
-
-        const intent = processUserInput(message)
-        if (intent.intent) {
-          const response = generateResponse(intent.intent, intent.entities)
-          messages.value.pop()
-          addMessage('model', response)
-          return
-        }
-
-        const result = await chat.sendMessage(message)
-        if (!result || !result.response) {
-          throw new Error('No response from AI service')
-        }
-        
-        messages.value.pop()
-        addMessage('model', result.response.text())
+        await handleUserMessage(userInput.value.trim());
+        userInput.value = '';
 
       } catch (error) {
-        console.error('Chat error:', error)
-        messages.value.pop()
-        addMessage('model', 'Xin lỗi, tôi gặp lỗi khi xử lý. Bạn có thể thử lại không?')
+        console.error('Chat error:', error);
+        messages.value.pop();
+        addMessage('model', 'Xin lỗi, tôi gặp lỗi khi xử lý. Bạn có thể thử lại không?');
+      } finally {
+        setTimeout(() => {
+          isProcessing.value = false;
+        }, cooldownTime);
       }
     }
 
     const handleAuthSuccess = async () => {
-      showAuth.value = false;
-      messages.value = []; 
-      await loadPreviousMessages(); 
-      addMessage('model', `Welcome back! You have ${currentUser.value?.aiCredits} AI credits remaining.`);
+      showAuth.value = false
+      messages.value = []
+      await loadPreviousMessages()
+      
+      if (!messages.value.length) {
+        addMessage('model', `Xin chào! Bạn có ${currentUser.value?.aiCredits} AI credits.`)
+      }
+    }
+
+    const scrollToBottom = () => {
+      if (messagesContainer.value) {
+        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+      }
     }
 
     onMounted(async () => {
@@ -258,11 +262,11 @@ Format location suggestions like this: [LOCATION]name|latitude|longitude[/LOCATI
 
     watch(isAuthenticated, async (newValue) => {
       if (newValue) {
-        // Re-initialize chat when user logs in
+      
         chatInitialized.value = false
         await initializeChat()
       } else {
-        // Clear everything when user logs out
+        
         messages.value = []
         chatInitialized.value = false
       }
@@ -280,6 +284,12 @@ Format location suggestions like this: [LOCATION]name|latitude|longitude[/LOCATI
       })
     })
 
+    watch(() => messages.value.length, () => {
+      nextTick(() => {
+        scrollToBottom()
+      })
+    })
+
     return {
       isOpen,
       userInput,
@@ -291,7 +301,9 @@ Format location suggestions like this: [LOCATION]name|latitude|longitude[/LOCATI
       formatMessage,
       showAuth,
       handleAuthSuccess,
-      chatInitialized
+      chatInitialized,
+      isProcessing,
+      scrollToBottom
     }
   }
 })
@@ -529,6 +541,11 @@ Format location suggestions like this: [LOCATION]name|latitude|longitude[/LOCATI
   box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
 }
 
+.chat-input textarea:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
 .chat-input button {
   background: #1A73E8;
   border: none;
@@ -552,6 +569,15 @@ Format location suggestions like this: [LOCATION]name|latitude|longitude[/LOCATI
 .chat-input button:disabled {
   background: #e0e0e0;
   cursor: not-allowed;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.chat-input button .material-icons[innerHTML="hourglass_empty"] {
+  animation: spin 1s linear infinite;
 }
 
 .typing-indicator {

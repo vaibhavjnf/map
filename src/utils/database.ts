@@ -49,6 +49,13 @@ interface RateLimit {
 
 class Database {
   private users: Map<string, User>;
+  private transactions: Map<string, Transaction>;
+  private sessions: Map<string, UserSession>;
+  private messages: Map<string, ChatMessage[]>;
+  private rateLimits: Map<string, RateLimit>;
+  private readonly STORAGE_KEYS = {
+    USERS: 'map_app_users',
+    TRANSACTIONS: 'map_app_transactions'
   };
 
   constructor() {
@@ -56,6 +63,7 @@ class Database {
     this.transactions = new Map();
     this.sessions = new Map();
     this.messages = new Map();
+    this.rateLimits = new Map();
     this.loadFromLocalStorage();
   }
 
@@ -246,6 +254,29 @@ class Database {
     this.saveToLocalStorage();
   }
 
+  async checkRateLimit(userId: string): Promise<boolean> {
+    const now = Date.now();
+    const limit = this.rateLimits.get(userId);
+    const WINDOW = 60000; // 1 minute
+    const MAX_REQUESTS = 10; // 10 requests per minute
+
+    if (!limit || (now - limit.timestamp) > WINDOW) {
+      this.rateLimits.set(userId, {
+        userId,
+        timestamp: now,
+        count: 1
+      });
+      return true;
+    }
+
+    if (limit.count >= MAX_REQUESTS) {
+      return false;
+    }
+
+    limit.count++;
+    return true;
+  }
+
   private sanitizeUser(user: User): User {
     const { password, ...safeUser } = user;
     return safeUser as User;
@@ -257,6 +288,15 @@ class Database {
       throw new Error('Unauthorized');
     }
     return Array.from(this.users.values()).map(this.sanitizeUser);
+  }
+
+  clearAllData(): void {
+    this.users.clear();
+    this.transactions.clear();
+    this.messages.clear();
+    this.sessions.clear();
+    this.saveToLocalStorage();
+    console.log('All data cleared');
   }
 }
 

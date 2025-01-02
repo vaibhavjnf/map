@@ -26,34 +26,51 @@ const hashPassword = async (password: string): Promise<string> => {
 export const auth = {
   async login(email: string, password: string): Promise<boolean> {
     try {
-      const user = await db.findUserByEmail(email)
-      if (!user) throw new Error('User not found')
+      console.log('Login attempt:', { email });
+      
+      const user = await db.findUserByEmail(email);
+      if (!user) {
+        console.log('User not found:', email);
+        throw new Error('Email không tồn tại');
+      }
 
-      const hashedPassword = await hashPassword(password)
+      const hashedPassword = await hashPassword(password);
+      console.log('Password check:', {
+        provided: hashedPassword,
+        stored: user.password,
+        match: hashedPassword === user.password
+      });
+
       if (hashedPassword !== user.password) {
-        console.log('Password mismatch:', { 
-          provided: hashedPassword,
-          stored: user.password
-        });
-        throw new Error('Invalid password')
+        throw new Error('Mật khẩu không chính xác');
       }
 
       await db.updateUser(user.id, {
         lastLoginAt: new Date().toISOString()
       })
+      await db.createSession(user.id)
 
       currentUser.value = {
         ...user,
         lastLoginAt: new Date(user.lastLoginAt)
       }
       isAuthenticated.value = true
-      cookies.set('auth_token', user.id)
-      localStorage.setItem('userId', user.id) 
+
+      const token = this.generateToken(user.id)
+      cookies.set('auth_token', token)
+      localStorage.setItem('userId', user.id)
+
       return true
     } catch (error) {
-      console.error('Login failed:', error)
+      console.error('Login error:', error)
       throw error
     }
+  },
+
+  generateToken(userId: string): string {
+    const timestamp = Date.now()
+    const data = `${userId}-${timestamp}-${import.meta.env.VITE_AUTH_SALT}`
+    return btoa(data) 
   },
 
   async register(email: string, password: string): Promise<boolean> {
@@ -114,10 +131,23 @@ export const auth = {
 
   async useAICredits(amount: number = 1): Promise<boolean> {
     if (!currentUser.value || currentUser.value.aiCredits < amount) {
-      return false
+      return false;
     }
-    currentUser.value.aiCredits -= amount
-    await db.updateUser(currentUser.value.id, { aiCredits: currentUser.value.aiCredits })
-    return true
+
+    const today = new Date().toDateString();
+    const dailyUsage = parseInt(localStorage.getItem(`daily_usage_${currentUser.value.id}_${today}`) || '0');
+    const DAILY_LIMIT = 50;
+
+    if (dailyUsage >= DAILY_LIMIT) {
+      throw new Error('Bạn đã đạt giới hạn sử dụng trong ngày. Vui lòng thử lại vào ngày mai.');
+    }
+
+    currentUser.value.aiCredits -= amount;
+    await db.updateUser(currentUser.value.id, { aiCredits: currentUser.value.aiCredits });
+    
+    localStorage.setItem(`daily_usage_${currentUser.value.id}_${today}`, (dailyUsage + 1).toString());
+    
+    return true;
   }
 }
+
