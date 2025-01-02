@@ -241,6 +241,25 @@ class Database {
     return this.sanitizeUser(updatedUser);
   }
 
+  async deleteUser(userId: string): Promise<void> {
+
+    this.users.delete(userId);
+    
+    this.transactions = new Map(
+      Array.from(this.transactions.entries())
+        .filter(([_, t]) => t.userId !== userId)
+    );
+    this.messages.delete(userId);
+    this.sessions.delete(userId);
+    this.otps = new Map(
+      Array.from(this.otps.entries())
+        .filter(([_, otp]) => otp.userId !== userId)
+    );
+
+    this.saveToLocalStorage();
+    console.log('User deleted:', userId);
+  }
+
   createTransaction(data: Omit<Transaction, 'id' | 'createdAt'>): Transaction {
     const transaction: Transaction = {
       id: Date.now().toString(),

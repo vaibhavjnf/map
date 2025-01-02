@@ -1,15 +1,14 @@
 <template>
   <div class="explore-container">
-    <!-- Trigger Button -->
+
     <button class="explore-fab" :class="{ 'is-hidden': isOpen }" @click="toggleMenu">
       <span class="material-icons">explore</span>
     </button>
 
-    <!-- Bottom Sheet -->
     <div class="bottom-sheet" :class="{ 'is-open': isOpen }">
       <div class="bottom-sheet-backdrop" @click="toggleMenu"></div>
       <div class="bottom-sheet-container">
-        <!-- Handle & Header -->
+
         <div class="sheet-header">
           <div class="handle-bar"></div>
           <button class="close-button" @click="toggleMenu">
@@ -18,7 +17,6 @@
           <h2>Explore Nearby</h2>
         </div>
 
-        <!-- Search Radius -->
         <div class="radius-section">
           <div class="radius-header">
             <span class="material-icons">radio_button_checked</span>
@@ -211,18 +209,62 @@ export default defineComponent({
       }
     }
 
-    const feelingLucky = () => {
-      if (!currentLocation.value) return
+    const feelingLucky = async () => {
+      if (!currentLocation.value) {
+        toast.show('Please enable location services first', 'info')
+        return
+      }
       
-      const randomCategory = categories[Math.floor(Math.random() * categories.length)]
-      const center = L.latLng(currentLocation.value.lat, currentLocation.value.lng)
+      try {
+        isSearching.value = true
+        const randomCategory = categories[Math.floor(Math.random() * categories.length)]
+        const center = L.latLng(currentLocation.value.lat, currentLocation.value.lng)
+        
+        const query = generateQuery(randomCategory.value, searchRadius.value, center)
+        
+        const response = await fetch('https://overpass-api.de/api/interpreter', {
+          method: 'POST',
+          body: query,
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'  
+          }
+        })
 
-      emit('show-places', {
-        category: randomCategory.value,
-        radius: searchRadius.value,
-        random: true,
-        center: currentLocation.value
-      })
+        if (!response.ok) throw new Error('Network response was not ok')
+        
+        const data = await response.json()
+        const results = data.elements
+          .filter((place: any) => place.tags && place.tags.name)
+          .map((place: any) => ({
+            name: place.tags.name,
+            lat: place.lat || place.center?.lat,
+            lng: place.lon || place.center?.lon,
+            source: 'openstreetmap',
+            details: place.tags
+          }))
+
+        if (results.length === 0) {
+          toast.show('No places found, trying another category...', 'info')
+          // Thử lại với category khác
+          feelingLucky()
+          return
+        }
+
+        setActiveMenu(null)
+        emit('show-places', {
+          results,
+          category: randomCategory.value,
+          radius: searchRadius.value, 
+          random: true,
+          center: currentLocation.value
+        })
+
+      } catch (error) {
+        console.error('Lucky search error:', error)
+        toast.show('Error searching places', 'error')
+      } finally {
+        isSearching.value = false
+      }
     }
 
     const formatRadius = (meters: number): string => {
@@ -262,455 +304,6 @@ export default defineComponent({
   }
 })
 </script>
-
 <style scoped>
-.explore-fab {
-  position: fixed;
-  bottom: 24px;
-  left: 24px; 
-  width: 48px; 
-  height: 48px;
-  border-radius: 12px;
-  background: #1A73E8;
-  border: none;
-  color: white;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  cursor: pointer;
-  z-index: 1000;
-  transform: translateZ(0); 
-  backface-visibility: hidden; 
-  will-change: transform; 
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-              background-color 0.2s ease,
-              opacity 0.2s ease,
-              visibility 0.2s ease;
-}
-
-.explore-fab:hover {
-  background: #1557B0;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
-}
-
-.explore-fab.is-hidden {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.bottom-sheet {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 999;
-  visibility: hidden;
-  transition: visibility 0s linear 0.3s;
-}
-
-.bottom-sheet.is-open {
-  visibility: visible;
-  transition-delay: 0s;
-}
-
-.bottom-sheet-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.5);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.bottom-sheet.is-open .bottom-sheet-backdrop {
-  opacity: 1;
-}
-
-.bottom-sheet-container {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: white;
-  border-radius: 28px 28px 0 0;
-  transform: translateY(100%);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  padding: 12px 24px 0; 
-  max-height: 85vh;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  display: flex;
-  flex-direction: column;
-  scrollbar-width: none; 
-  -ms-overflow-style: none; 
-  font-family: 'Product Sans', 'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-.bottom-sheet-container::-webkit-scrollbar {
-  display: none;  
-}
-
-.bottom-sheet.is-open .bottom-sheet-container {
-  transform: translateY(0);
-}
-
-.sheet-header {
-  text-align: center;
-  margin-bottom: 24px;
-  position: relative;
-}
-
-.handle-bar {
-  width: 32px;
-  height: 4px;
-  background: #E0E0E0;
-  border-radius: 2px;
-  margin: 8px auto 20px;
-}
-
-.sheet-header h2 {
-  font-size: 28px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #1A73E8, #34A853);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin: 0;
-  letter-spacing: -0.5px;
-  font-family: 'Product Sans', 'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-.close-button {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  padding: 8px;
-  cursor: pointer;
-  color: #666;
-  z-index: 1;
-}
-
-.radius-section {
-  background: #F8F9FA;
-  padding: 16px;
-  border-radius: 16px;
-  margin-bottom: 24px;
-}
-
-.radius-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  color: #5F6368;
-  font-size: 14px;
-}
-
-.radius-buttons {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.radius-btn {
-  padding: 8px;
-  border: 1px solid #E0E0E0;
-  border-radius: 8px;
-  background: white;
-  cursor: pointer;
-  font-size: 13px;
-  transition: all 0.2s ease;
-}
-
-.radius-btn.active {
-  background: #E8F0FE;
-  border-color: #1A73E8;
-  color: #1A73E8;
-}
-
-.radius-slider,
-.radius-slider::-webkit-slider-thumb {
-  display: none;
-}
-
-.categories-section {
-  margin-bottom: 24px;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.categories-section::-webkit-scrollbar {
-  display: none;
-}
-
-.categories-section h3 {
-  font-size: 18px;
-  font-weight: 600;
-  color: #202124;
-  margin-bottom: 20px;
-  letter-spacing: -0.5px;
-}
-
-.categories-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 16px;
-}
-
-.category-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 16px 12px;
-  border-radius: 16px;
-  background: white;
-  border: 1px solid #E0E0E0;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.category-tile .material-icons {
-  font-size: 28px;
-  color: #5F6368;
-  margin-bottom: 4px;
-}
-
-.category-tile span:not(.material-icons) {
-  font-size: 13px;
-  font-weight: 500;
-  color: #202124;
-}
-
-.category-tile.active {
-  background: #E8F0FE;
-  border-color: #1A73E8;
-  box-shadow: 0 2px 8px rgba(26,115,232,0.15);
-}
-
-.category-tile.active .material-icons {
-  color: #1A73E8;
-}
-
-.category-tile.active span:not(.material-icons) {
-  color: #1A73E8;
-  font-weight: 600;
-}
-
-.category-tile::before,
-.category-tile:hover::before {
-  display: none;
-}
-
-.action-buttons {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.action-buttons button {
-  padding: 12px 24px;
-  border-radius: 12px;
-  border: none;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: all 0.2s ease;
-}
-
-.primary {
-  background: #1A73E8;
-  color: white;
-}
-
-.secondary {
-  background: #F8F9FA;
-  color: #1A73E8;
-  border: 1px solid #1A73E8;
-}
-
-.loading-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(255, 255, 255, 0.98);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1003;
-  backdrop-filter: blur(8px);
-  font-family: 'Product Sans', 'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-.loading-spinner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
-
-.loading-spinner .material-icons {
-  font-size: 48px;
-  color: #1A73E8;
-  filter: drop-shadow(0 4px 8px rgba(26, 115, 232, 0.2));
-}
-
-.loading-text {
-  font-size: 16px;
-  font-weight: 500;
-  color: #202124;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.dots span {
-  animation: dots 1.4s infinite;
-  opacity: 0;
-}
-
-.dots span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.dots span:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes dots {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
-}
-
-@keyframes spin {
-  to { 
-    transform: rotate(360deg);
-  }
-}
-
-.rotating {
-  animation: spin 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-}
-
-@media (max-width: 767px) {
-  .bottom-sheet-container {
-    height: 100%;
-    padding: 12px 24px 0;
-    overflow: hidden;
-  }
-
-  .categories-section {
-    flex: 1;
-    overflow-y: auto;
-    padding-bottom: 100px; 
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .action-buttons {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: white;
-    padding: 16px 24px calc(16px + env(safe-area-inset-bottom));
-    box-shadow: 0 -4px 12px rgba(0,0,0,0.15);
-    margin: 0;
-    z-index: 1002;
-  }
-
-  .action-buttons::before {
-    content: '';
-    position: absolute;
-    top: -20px;
-    left: 0;
-    right: 0;
-    height: 20px;
-    background: linear-gradient(to top, white, transparent);
-    pointer-events: none;
-  }
-
-  .explore-fab {
-    bottom: auto; 
-    top: 80px; 
-    left: 24px;
-    z-index: 1001;
-    transform: translateZ(0); 
-    contain: layout style paint; 
-  }
-
-  .loading-overlay {
-    position: fixed;
-    inset: 0;
-    border-radius: 28px 28px 0 0;
-  }
-}
-
-@media (min-width: 768px) {
-
-  .explore-fab {
-    bottom: 24px;
-    left: 24px;
-  }
-
-  .bottom-sheet-container {
-    position: fixed;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%) scale(0.95);
-    bottom: auto;
-    right: auto;
-    width: 480px;
-    max-height: 80vh;
-    border-radius: 28px;
-  }
-
-  .bottom-sheet.is-open .bottom-sheet-container {
-    transform: translate(-50%, -50%) scale(1);
-  }
-
-  .categories-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-  }
-
-  .radius-buttons {
-    grid-template-columns: repeat(4, 1fr);
-  }
-
-  .action-buttons {
-    margin-top: auto;
-    padding: 24px 0;
-  }
-
-  .action-buttons button {
-    padding: 16px 32px;
-    font-size: 15px;
-  }
-
-  .category-tile {
-    padding: 20px 16px;
-  }
-
-  .category-tile .material-icons {
-    font-size: 32px;
-  }
-
-  .category-tile span:not(.material-icons) {
-    font-size: 14px;
-  }
-
-  .loading-overlay {
-    border-radius: 28px;
-  }
-}
+@import '../styles/nearby.css';
 </style>

@@ -1,3 +1,4 @@
+
 <template>
   <div class="auth-modal">
     <div class="modal-backdrop" @click="$emit('close')"></div>

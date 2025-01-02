@@ -16,15 +16,14 @@ export const toast = {
   timeout: ref<number | null>(null),
 
   show(msg: string, type: 'success' | 'error' | 'info' = 'info', duration: number = 5000) {
-    // Clear existing timeout
+
     if (this.timeout.value) {
       clearTimeout(this.timeout.value)
     }
 
-    // For errors, show longer and add more details
     if (type === 'error') {
       this.message.value = `Error: ${msg}\n\nPlease check console for more details.`
-      duration = 8000 // 8 seconds for errors
+      duration = 8000 
       console.error('Toast Error:', msg)
     } else {
       this.message.value = msg
@@ -32,7 +31,6 @@ export const toast = {
     
     this.type.value = type
 
-    // Set new timeout
     this.timeout.value = window.setTimeout(() => {
       this.message.value = ''
     }, duration)
@@ -60,7 +58,7 @@ export default defineComponent({
 <style scoped>
 .toast {
   position: fixed;
-  top: 80px;
+  top: 60px; 
   left: 50%;
   transform: translateX(-50%);
   padding: 12px 24px;
@@ -118,8 +116,26 @@ export default defineComponent({
 
 @media (max-width: 768px) {
   .toast {
-    width: calc(100% - 32px);
-    top: 60px; 
+    width: calc(100% - 48px);
+    max-width: 320px; 
+    top: 140px; 
+    padding: 10px 16px;
+    font-size: 13px; 
+    min-width: auto; 
+  }
+
+  .toast.error {
+    padding: 12px 16px; 
+    font-size: 12px; 
+  }
+
+  .message {
+    font-size: 13px; 
+    line-height: 1.3; 
+  }
+
+  .material-icons {
+    font-size: 18px; 
   }
 }
 </style>

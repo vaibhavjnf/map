@@ -1,7 +1,6 @@
 import { initializeKeys, getKey } from '../config/keys';
 import { getSecret } from '../config/secrets';
 
-// Dynamic import để tránh bundle env vars
 const loadKeys = async () => {
   await import('../config/keys').then(module => {
     module.initializeKeys();

@@ -6,7 +6,7 @@
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   position: fixed;
-  z-index: 1000;
+  z-index: 1500;
 }
 
 .chat-button {
@@ -112,11 +112,14 @@
 .chat-messages {
   padding: 20px;
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
   min-height: 300px;
   max-height: 500px;
   scroll-behavior: smooth;
   background: rgba(248, 249, 250, 0.5);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .message {
@@ -166,6 +169,8 @@
   border-radius: 16px;
   position: relative;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .message.user .message-content {
@@ -187,6 +192,8 @@
   white-space: pre-wrap;
   letter-spacing: -0.1px;
   font-weight: 400;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .chat-input {

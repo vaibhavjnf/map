@@ -163,7 +163,7 @@ export default defineComponent({
         
         const location = findLocationInText(responseText)
         if (location) {
-          // Gửi đúng format location object
+
           emit('search-location', {
             name: location.name,
             latitude: location.latitude,

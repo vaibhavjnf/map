@@ -4,6 +4,7 @@
     :currentLocation="currentLocation" 
     @select-location="handleSearchSelect" 
   />
+  <AccountButton />
   <GpsButton @location="handleLocation" />
   <MapOptions 
     @update-style="handleStyleUpdate"
@@ -33,6 +34,7 @@ import SearchBox from './components/SearchBox.vue'
 import ExploreNearby from './components/ExploreNearby.vue'
 import Toast, { toast } from './components/Toast.vue'
 import ChatButton from './components/ChatAI.vue'
+import AccountButton from './components/AccountButton.vue'
 import L from 'leaflet'
 import { activeMenu } from './utils/menuState'
 import { auth } from './utils/auth'
@@ -46,7 +48,8 @@ export default defineComponent({
     SearchBox,
     ExploreNearby,
     Toast,
-    ChatButton
+    ChatButton,
+    AccountButton
   },
   setup() {
     const mapView = ref<InstanceType<typeof MapView> | null>(null)
@@ -189,7 +192,20 @@ html, body {
     display: none;
   }
 
+  body[data-active-menu="chat"] .account-container,
+  body[data-active-menu="explore"] .account-container {
+    display: none;
+  }
+
   body[data-active-menu="options"] .chat-container {
+    display: none;
+  }
+
+  /* Thêm rules mới để ẩn các nút khi mở auth modal */
+  body[data-active-menu="auth"] .explore-fab,
+  body[data-active-menu="auth"] .chat-container,
+  body[data-active-menu="auth"] .gps-button,
+  body[data-active-menu="auth"] .map-options {
     display: none;
   }
 }
@@ -200,6 +216,15 @@ html, body {
   body[data-active-menu] .gps-button,
   body[data-active-menu] .map-options {
     display: block !important;
+  }
+
+  /* Thêm rules mới cho desktop */
+  body[data-active-menu="chat"] .account-menu {
+    display: none;
+  }
+
+  body[data-active-menu="account"] .chat-window {
+    display: none;
   }
 }
 </style>

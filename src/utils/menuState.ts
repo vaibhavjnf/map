@@ -1,7 +1,9 @@
 import { ref } from 'vue'
 
-export const activeMenu = ref<'explore' | 'options' | 'chat' | null>(null)
+export type MenuState = 'explore' | 'options' | 'chat' | 'auth' | 'account' | null
 
-export const setActiveMenu = (menu: 'explore' | 'options' | 'chat' | null) => {
+export const activeMenu = ref<MenuState>(null)
+
+export const setActiveMenu = (menu: MenuState) => {
   activeMenu.value = menu
 }

@@ -106,6 +106,8 @@ export const auth = {
   },
 
   async register(email: string, password: string): Promise<boolean> {
+    let userId: string | null = null;
+    
     try {
       console.log('Starting registration for:', email);
       
@@ -115,8 +117,6 @@ export const auth = {
       }
 
       const hashedPassword = await hashPassword(password);
-      console.log('Registration password hash length:', hashedPassword.length);
-
       const user = await db.createUser({
         email,
         password: hashedPassword,
@@ -124,22 +124,38 @@ export const auth = {
         lastLoginAt: new Date().toISOString()
       });
 
-      const storedUser = await db.findUserByEmail(email);
-      console.log('Stored user password verification:', {
-        hasStoredPassword: !!storedUser?.password,
-        passwordLength: storedUser?.password?.length
-      });
+      userId = user.id; 
 
       const otpSent = await this.sendVerificationOTP(email, user.id);
       if (!otpSent) {
-      
+
+        await this.rollbackRegistration(userId);
         throw new Error('Không thể gửi mã xác thực, vui lòng thử lại sau');
       }
 
       return true;
+
     } catch (error: any) {
+
+      if (userId) {
+        await this.rollbackRegistration(userId);
+      }
       console.error('Registration failed:', error);
       throw error;
+    }
+  },
+
+  async rollbackRegistration(userId: string): Promise<void> {
+    try {
+
+      const user = await db.getUser(userId);
+      if (user) {
+
+        await db.deleteUser(userId);
+        console.log('Registration rollback completed for user:', userId);
+      }
+    } catch (error) {
+      console.error('Rollback failed:', error);
     }
   },
 
