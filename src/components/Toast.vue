@@ -74,7 +74,7 @@ export default defineComponent({
   font-family: 'Inter', sans-serif;
   min-width: 200px;
   max-width: 400px;
-  white-space: pre-line; /* Allow line breaks in message */
+  white-space: pre-line;
   text-align: left;
 }
 
