@@ -47,31 +47,63 @@ interface RateLimit {
   count: number;
 }
 
+interface OTPRecord {
+  userId: string;
+  email: string;
+  code: string;
+  expiresAt: number;
+  verified: boolean;
+}
+
 class Database {
   private users: Map<string, User>;
   private transactions: Map<string, Transaction>;
   private sessions: Map<string, UserSession>;
   private messages: Map<string, ChatMessage[]>;
   private rateLimits: Map<string, RateLimit>;
+  private otps: Map<string, OTPRecord>;
   private readonly STORAGE_KEYS = {
     USERS: 'map_app_users',
     TRANSACTIONS: 'map_app_transactions'
   };
 
   constructor() {
+    // Khởi tạo maps rỗng trước
     this.users = new Map();
     this.transactions = new Map();
     this.sessions = new Map();
     this.messages = new Map();
     this.rateLimits = new Map();
+    this.otps = new Map();
+
+    // Log trước khi load
+    console.log('Database initialized with empty maps');
+    
     this.loadFromLocalStorage();
+    
+    // Log sau khi load để kiểm tra
+    console.log('Database after loading:', {
+      users: Array.from(this.users.entries()),
+      totalUsers: this.users.size
+    });
   }
 
   private saveToLocalStorage(): void {
     try {
+      const usersData = Array.from(this.users.entries());
+      // Verify password hashes before saving
+      const validUsers = usersData.every(([_, user]) => 
+        user.password && user.password.length === 64
+      );
+
+      if (!validUsers) {
+        console.error('Invalid password hashes detected');
+        throw new Error('Invalid password data');
+      }
+
       localStorage.setItem(
         this.STORAGE_KEYS.USERS,
-        JSON.stringify(Array.from(this.users.entries()))
+        JSON.stringify(usersData)
       );
       localStorage.setItem(
         this.STORAGE_KEYS.TRANSACTIONS,
@@ -89,12 +121,20 @@ class Database {
   private loadFromLocalStorage(): void {
     try {
       const usersData = localStorage.getItem(this.STORAGE_KEYS.USERS);
+      console.log('Loading users from localStorage:', usersData);
+
+      if (usersData) {
+        const parsedData = JSON.parse(usersData);
+        this.users = new Map(parsedData);
+        console.log('Parsed users data:', parsedData);
+      } else {
+        console.log('No existing users data found');
+        this.users = new Map();
+      }
+
       const transactionsData = localStorage.getItem(this.STORAGE_KEYS.TRANSACTIONS);
       const messagesData = localStorage.getItem('map_app_messages');
 
-      this.users = new Map(
-        usersData ? JSON.parse(usersData) : []
-      );
       this.transactions = new Map(
         transactionsData ? JSON.parse(transactionsData) : []
       );
@@ -103,14 +143,32 @@ class Database {
       );
     } catch (error) {
       console.error('Error loading from localStorage:', error);
-      this.users = new Map();
-      this.transactions = new Map();
-      this.messages = new Map();
+      // Reset tất cả maps khi có lỗi
+      this.clearAllData();
     }
   }
 
   async createUser(data: Omit<User, 'id' | 'createdAt' | 'role'>): Promise<User> {
+    // Validate password hash
+    if (!data.password || data.password.length !== 64) {
+      console.error('Invalid password hash:', {
+        hasPassword: !!data.password,
+        length: data.password?.length
+      });
+      throw new Error('Invalid password format');
+    }
+
+    // Log an toàn không có password
+    console.log('Creating new user:', {
+      email: data.email,
+      aiCredits: data.aiCredits,
+      lastLoginAt: data.lastLoginAt
+    });
+    
     const existingUser = await this.findUserByEmail(data.email);
+    // Log an toàn
+    console.log('Existing user check:', existingUser ? 'User exists' : 'No existing user');
+    
     if (existingUser) {
       throw new Error('Email already exists');
     }
@@ -122,15 +180,27 @@ class Database {
       ...data
     };
 
+    console.log('Saving new user:', this.sanitizeUser(user));
     this.users.set(user.id, user);
+    
+    console.log('Database after adding user:', {
+      totalUsers: this.users.size,
+      allUsers: Array.from(this.users.values()).map(u => this.sanitizeUser(u))
+    });
+
     this.saveToLocalStorage();
     return this.sanitizeUser(user);
   }
 
   async findUserByEmail(email: string): Promise<User | undefined> {
+    console.log('Finding user by email:', email);
+    
     const user = Array.from(this.users.values())
       .find(u => u.email.toLowerCase() === email.toLowerCase());
-    return user ? this.sanitizeUser(user) : undefined;
+    
+    // Không sanitize user khi tìm kiếm để xác thực
+    console.log('Found user:', user ? 'Yes' : 'No');
+    return user;
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -257,8 +327,8 @@ class Database {
   async checkRateLimit(userId: string): Promise<boolean> {
     const now = Date.now();
     const limit = this.rateLimits.get(userId);
-    const WINDOW = 60000; // 1 minute
-    const MAX_REQUESTS = 10; // 10 requests per minute
+    const WINDOW = 60000; 
+    const MAX_REQUESTS = 10; 
 
     if (!limit || (now - limit.timestamp) > WINDOW) {
       this.rateLimits.set(userId, {
@@ -277,9 +347,42 @@ class Database {
     return true;
   }
 
+  async createOTP(email: string, userId: string): Promise<string> {
+    const code = Math.floor(100000 + Math.random() * 900000).toString(); 
+    const expiresAt = Date.now() + 10 * 60 * 1000; 
+    
+    const otp: OTPRecord = {
+      userId,
+      email,
+      code,
+      expiresAt,
+      verified: false
+    };
+    
+    this.otps.set(email, otp);
+    return code;
+  }
+
+  async verifyOTP(email: string, code: string): Promise<boolean> {
+    const otp = this.otps.get(email);
+    
+    if (!otp || otp.code !== code || Date.now() > otp.expiresAt) {
+      return false;
+    }
+
+    otp.verified = true;
+    return true;
+  }
+
+  async isEmailVerified(email: string): Promise<boolean> {
+    const otp = this.otps.get(email);
+    return otp?.verified || false;
+  }
+
   private sanitizeUser(user: User): User {
+    // Chỉ sanitize khi trả về cho client
     const { password, ...safeUser } = user;
-    return safeUser as User;
+    return { ...safeUser, password: undefined } as unknown as User;
   }
 
   async getAllUsers(adminId: string): Promise<User[]> {
@@ -295,9 +398,20 @@ class Database {
     this.transactions.clear();
     this.messages.clear();
     this.sessions.clear();
-    this.saveToLocalStorage();
+    this.otps.clear();
+    
+    localStorage.removeItem(this.STORAGE_KEYS.USERS);
+    localStorage.removeItem(this.STORAGE_KEYS.TRANSACTIONS);
+    localStorage.removeItem('map_app_messages');
+    
     console.log('All data cleared');
   }
 }
 
+export const resetDatabase = () => {
+  db.clearAllData();
+};
+
 export const db = new Database();
+
+(window as any).resetDatabase = resetDatabase;

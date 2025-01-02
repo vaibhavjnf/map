@@ -239,7 +239,6 @@ export default defineComponent({
     }, 200) 
 
     const selectLocation = (result: SearchResult) => {
-     
       const key = `${result.lat}-${result.lon}`
       recentSearches.set(key, result)
       
@@ -250,13 +249,15 @@ export default defineComponent({
         }
       }
 
-      emit('select-location', {
+      const location = {
+        name: result.display_name,
         latitude: parseFloat(result.lat),
-        longitude: parseFloat(result.lon),
-        name: result.display_name
-      })
+        longitude: parseFloat(result.lon)
+      }
+
+      emit('select-location', location)
       showResults.value = false
-      searchQuery.value = ''
+      searchQuery.value = location.name 
       results.value = []
     }
 

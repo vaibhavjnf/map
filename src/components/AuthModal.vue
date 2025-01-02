@@ -2,62 +2,91 @@
   <div class="auth-modal">
     <div class="modal-backdrop" @click="$emit('close')"></div>
     <div class="modal-content">
-      <h2>{{ isLogin ? 'Đăng nhập' : 'Đăng ký tài khoản' }}</h2>
+      <h2>{{ getTitle }}</h2>
       
       <form @submit.prevent="handleSubmit" class="auth-form">
-        <div class="form-group">
-          <label>Email</label>
-          <input 
-            v-model="email"
-            type="email" 
-            required
-            placeholder="email@example.com"
-          >
-        </div>
+        
+        <template v-if="!showOtpVerification">
+          <div class="form-group">
+            <label>Email</label>
+            <input 
+              v-model="email"
+              type="email" 
+              required
+              placeholder="email@example.com"
+            >
+          </div>
 
-        <div class="form-group">
-          <label>Mật khẩu</label>
-          <input 
-            v-model="password"
-            type="password" 
-            required
-            placeholder="••••••••"
-          >
-        </div>
+          <div class="form-group">
+            <label>Mật khẩu</label>
+            <input 
+              v-model="password"
+              type="password" 
+              required
+              placeholder="••••••••"
+            >
+          </div>
 
-        <div class="remember-me">
-          <input 
-            type="checkbox" 
-            id="remember" 
-            v-model="rememberMe"
-          >
-          <label for="remember">Ghi nhớ đăng nhập</label>
-        </div>
+          <div class="remember-me">
+            <input 
+              type="checkbox" 
+              id="remember" 
+              v-model="rememberMe"
+            >
+            <label for="remember">Ghi nhớ đăng nhập</label>
+          </div>
 
-        <button type="submit" class="submit-btn">
-          {{ isLogin ? 'Đăng nhập' : 'Đăng ký' }}
-        </button>
-
-        <p class="switch-mode">
-          {{ isLogin ? 'Chưa có tài khoản?' : 'Đã có tài khoản?' }}
-          <button type="button" @click="toggleMode">
-            {{ isLogin ? 'Đăng ký ngay' : 'Đăng nhập' }}
+          <button type="submit" class="submit-btn">
+            {{ isLogin ? 'Đăng nhập' : 'Đăng ký' }}
           </button>
-        </p>
 
-        <div v-if="!isLogin" class="bonus-info">
-          <span class="material-icons">stars</span>
-          <p>Nhận ngay 100 AI credits khi đăng ký!</p>
-        </div>
+          <p class="switch-mode">
+            {{ isLogin ? 'Chưa có tài khoản?' : 'Đã có tài khoản?' }}
+            <button type="button" @click="toggleMode">
+              {{ isLogin ? 'Đăng ký ngay' : 'Đăng nhập' }}
+            </button>
+          </p>
+
+          <div v-if="!isLogin" class="bonus-info">
+            <span class="material-icons">stars</span>
+            <p>Nhận ngay 100 AI credits khi đăng ký!</p>
+          </div>
+        </template>
+
+        <template v-else>
+          <div class="form-group">
+            <label>Verification Code</label>
+            <input 
+              v-model="otpCode"
+              type="text" 
+              required
+              pattern="\d{6}"
+              maxlength="6"
+              placeholder="Enter 6-digit code"
+            >
+          </div>
+
+          <p class="otp-info">
+            We sent a verification code to {{ email }}.
+            <button type="button" @click="resendOTP" :disabled="resendCooldown > 0">
+              Resend Code {{ resendCooldown > 0 ? `(${resendCooldown}s)` : '' }}
+            </button>
+          </p>
+
+          <button type="submit" class="submit-btn">
+            Verify Email
+          </button>
+        </template>
       </form>
     </div>
   </div>
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, onMounted } from 'vue'
+import { defineComponent, ref, onMounted, computed } from 'vue'
 import { auth } from '../utils/auth'
 import { toast } from './Toast.vue'
+import { db } from '../utils/database';
 
 export default defineComponent({
   name: 'AuthModal',
@@ -67,47 +96,89 @@ export default defineComponent({
     const email = ref('')
     const password = ref('')
     const rememberMe = ref(false)
+    const showOtpVerification = ref(false)
+    const otpCode = ref('')
+    const resendCooldown = ref(0)
+    const pendingEmail = ref('')
 
     const toggleMode = () => {
       isLogin.value = !isLogin.value
     }
 
-    // Load saved credentials
+    const getTitle = computed(() => {
+      if (showOtpVerification.value) return 'Verify Email'
+      return isLogin.value ? 'Đăng nhập' : 'Đăng ký tài khoản'
+    })
+
     onMounted(() => {
       const savedEmail = localStorage.getItem('remembered_email')
       const savedPassword = localStorage.getItem('remembered_password')
       if (savedEmail && savedPassword) {
         email.value = savedEmail
-        password.value = atob(savedPassword) // decode base64
+        password.value = atob(savedPassword) 
         rememberMe.value = true
       }
     })
 
+    const startResendCooldown = () => {
+      resendCooldown.value = 60
+      const timer = setInterval(() => {
+        resendCooldown.value--
+        if (resendCooldown.value <= 0) {
+          clearInterval(timer)
+        }
+      }, 1000)
+    }
+
+    const resendOTP = async () => {
+      if (resendCooldown.value > 0) return
+      
+      try {
+        const user = await db.findUserByEmail(pendingEmail.value)
+        if (!user) throw new Error('User not found')
+        
+        await auth.sendVerificationOTP(pendingEmail.value, user.id)
+        startResendCooldown()
+      } catch (error: any) {
+        toast.show(error.message || 'Failed to resend OTP', 'error')
+      }
+    }
+
     const handleSubmit = async () => {
       try {
-        const success = isLogin.value 
-          ? await auth.login(email.value, password.value)
-          : await auth.register(email.value, password.value)
+        if (showOtpVerification.value) {
+          const success = await auth.completeRegistration(pendingEmail.value, otpCode.value)
+          if (success) {
+            toast.show('Email verified successfully!', 'success')
+            emit('auth-success')
+            emit('close')
+          }
+          return
+        }
 
-        if (success) {
-          // Save credentials if remember me is checked
+        if (isLogin.value) {
+     
+          await auth.login(email.value, password.value)
+          
           if (rememberMe.value) {
             localStorage.setItem('remembered_email', email.value)
-            localStorage.setItem('remembered_password', btoa(password.value)) // encode base64
+            localStorage.setItem('remembered_password', btoa(password.value))
           } else {
             localStorage.removeItem('remembered_email')
             localStorage.removeItem('remembered_password')
           }
 
-          toast.show(
-            isLogin.value ? 'Đăng nhập thành công!' : 'Đăng ký thành công!', 
-            'success'
-          )
           emit('auth-success')
           emit('close')
+        } else {
+     
+          await auth.register(email.value, password.value)
+          pendingEmail.value = email.value
+          showOtpVerification.value = true
+          startResendCooldown()
         }
       } catch (error: any) {
-        toast.show(error.message || 'Đăng nhập thất bại', 'error')
+        toast.show(error.message || 'Authentication failed', 'error')
       }
     }
 
@@ -117,7 +188,12 @@ export default defineComponent({
       password,
       rememberMe,
       toggleMode,
-      handleSubmit
+      handleSubmit,
+      showOtpVerification,
+      otpCode,
+      resendCooldown,
+      getTitle,
+      resendOTP
     }
   }
 })
@@ -237,5 +313,25 @@ export default defineComponent({
 h2 {
   margin: 0;
   color: #1A73E8;
+}
+
+.otp-info {
+  text-align: center;
+  margin: 16px 0;
+  color: #666;
+}
+
+.otp-info button {
+  background: none;
+  border: none;
+  color: #1A73E8;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.otp-info button:disabled {
+  color: #999;
+  cursor: not-allowed;
 }
 </style>

@@ -69,7 +69,7 @@ export default defineComponent({
 
 @media (max-width: 768px) {
   .gps-button {
-    right: 60px; /* Di chuyển nút GPS lại gần với MapOptions */
+    right: 60px; 
     bottom: 20px;
   }
 }

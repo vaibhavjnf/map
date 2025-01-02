@@ -13,12 +13,29 @@ import { defineComponent, ref, computed } from 'vue'
 export const toast = {
   message: ref(''),
   type: ref('info'),
-  show(msg: string, type: 'success' | 'error' | 'info' = 'info') {
-    this.message.value = msg
+  timeout: ref<number | null>(null),
+
+  show(msg: string, type: 'success' | 'error' | 'info' = 'info', duration: number = 5000) {
+    // Clear existing timeout
+    if (this.timeout.value) {
+      clearTimeout(this.timeout.value)
+    }
+
+    // For errors, show longer and add more details
+    if (type === 'error') {
+      this.message.value = `Error: ${msg}\n\nPlease check console for more details.`
+      duration = 8000 // 8 seconds for errors
+      console.error('Toast Error:', msg)
+    } else {
+      this.message.value = msg
+    }
+    
     this.type.value = type
-    setTimeout(() => {
+
+    // Set new timeout
+    this.timeout.value = window.setTimeout(() => {
       this.message.value = ''
-    }, 2000)
+    }, duration)
   }
 }
 
@@ -57,6 +74,8 @@ export default defineComponent({
   font-family: 'Inter', sans-serif;
   min-width: 200px;
   max-width: 400px;
+  white-space: pre-line; /* Allow line breaks in message */
+  text-align: left;
 }
 
 .toast.success {
@@ -67,6 +86,9 @@ export default defineComponent({
 .toast.error {
   background: #f44336;
   color: white;
+  padding: 16px 24px;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .toast.info {

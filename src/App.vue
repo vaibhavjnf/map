@@ -32,7 +32,7 @@ import MapOptions from './components/MapOptions.vue'
 import SearchBox from './components/SearchBox.vue'
 import ExploreNearby from './components/ExploreNearby.vue'
 import Toast, { toast } from './components/Toast.vue'
-import ChatButton from './components/ChatButton.vue'
+import ChatButton from './components/ChatAI.vue'
 import L from 'leaflet'
 import { activeMenu } from './utils/menuState'
 import { auth } from './utils/auth'
@@ -56,12 +56,10 @@ export default defineComponent({
     const handleLocation = ({ latitude, longitude }: { latitude: number; longitude: number }) => {
       currentLocation.value = { lat: latitude, lng: longitude }
       
-      // Cập nhật vị trí ngay lập tức
       requestAnimationFrame(() => {
-        // Cập nhật ExploreNearby trước
+
         exploreNearby.value?.updateLocation({ lat: latitude, lng: longitude })
         
-        // Sau đó cập nhật map và marker
         mapView.value?.centerMap(latitude, longitude)
         mapView.value?.addMarker(latitude, longitude, 'You are here', 'gps')
       })
@@ -122,17 +120,16 @@ export default defineComponent({
       }
     }
 
-    const handleAISearch = (location: string) => {
-      // Trigger search box with AI suggested location
-      const searchBox = document.querySelector('.search-input') as HTMLInputElement
-      if (searchBox) {
-        searchBox.value = location
-        searchBox.dispatchEvent(new Event('input'))
-      }
+    const handleAISearch = (location: { name: string; latitude: number; longitude: number }) => {
+      handleSearchSelect({
+        name: location.name,
+        latitude: location.latitude,
+        longitude: location.longitude
+      });
     }
 
     const handleAIDirections = (destination: string) => {
-      // Future implementation for directions
+
       console.log('Get directions to:', destination)
     }
 
@@ -149,7 +146,6 @@ export default defineComponent({
       handleGpsRequest()
     })
 
-    // Add watcher for menu state
     watch(activeMenu, (newMenu) => {
       document.body.dataset.activeMenu = newMenu || ''
     })
@@ -193,7 +189,6 @@ html, body {
     display: none;
   }
 
-  body[data-active-menu="options"] .explore-fab,
   body[data-active-menu="options"] .chat-container {
     display: none;
   }
