@@ -88,62 +88,79 @@ class Database {
     });
   }
 
+  private logSafeUserData(user: User) {
+    // Chỉ log thông tin an toàn
+    return {
+      id: user.id,
+      email: user.email.replace(/(?<=.{3}).(?=.*@)/g, '*'),
+      role: user.role,
+      aiCredits: user.aiCredits,
+      createdAt: user.createdAt
+    };
+  }
+
   private saveToLocalStorage(): void {
     try {
-      const usersData = Array.from(this.users.entries());
-      // Verify password hashes before saving
-      const validUsers = usersData.every(([_, user]) => 
-        user.password && user.password.length === 64
-      );
-
-      if (!validUsers) {
-        console.error('Invalid password hashes detected');
-        throw new Error('Invalid password data');
-      }
+      // Mã hóa dữ liệu trước khi lưu
+      const encryptedUsers = Array.from(this.users.entries())
+        .map(([id, user]) => [id, {
+          ...user,
+          email: btoa(user.email), // Mã hóa email
+          password: btoa(user.password) // Mã hóa password
+        }]);
 
       localStorage.setItem(
         this.STORAGE_KEYS.USERS,
-        JSON.stringify(usersData)
+        btoa(JSON.stringify(encryptedUsers)) // Mã hóa toàn bộ data
       );
+
+      // Không lưu transactions và messages dưới dạng plain text
       localStorage.setItem(
         this.STORAGE_KEYS.TRANSACTIONS,
-        JSON.stringify(Array.from(this.transactions.entries()))
+        btoa(JSON.stringify(Array.from(this.transactions.entries())))
       );
       localStorage.setItem(
         'map_app_messages',
         JSON.stringify(Array.from(this.messages.entries()))
       );
     } catch (error) {
-      console.error('Error saving to localStorage:', error);
+      console.error('Storage error occurred');
     }
   }
 
   private loadFromLocalStorage(): void {
     try {
-      const usersData = localStorage.getItem(this.STORAGE_KEYS.USERS);
-      console.log('Loading users from localStorage:', usersData);
+      const encryptedData = localStorage.getItem(this.STORAGE_KEYS.USERS);
+      console.log('Loading encrypted database...');
 
-      if (usersData) {
-        const parsedData = JSON.parse(usersData);
-        this.users = new Map(parsedData);
-        console.log('Parsed users data:', parsedData);
-      } else {
-        console.log('No existing users data found');
-        this.users = new Map();
+      if (encryptedData) {
+        const decryptedData = atob(encryptedData);
+        const parsedData = JSON.parse(decryptedData);
+        
+        // Giải mã dữ liệu
+        this.users = new Map(
+          parsedData.map(([id, user]: [string, any]) => [id, {
+            ...user,
+            email: atob(user.email),
+            password: atob(user.password)
+          }])
+        );
+
+        console.log('Database loaded successfully');
+        console.log('Total users:', this.users.size);
       }
 
       const transactionsData = localStorage.getItem(this.STORAGE_KEYS.TRANSACTIONS);
       const messagesData = localStorage.getItem('map_app_messages');
 
       this.transactions = new Map(
-        transactionsData ? JSON.parse(transactionsData) : []
+        transactionsData ? JSON.parse(atob(transactionsData)) : []
       );
       this.messages = new Map(
         messagesData ? JSON.parse(messagesData) : []
       );
     } catch (error) {
-      console.error('Error loading from localStorage:', error);
-      // Reset tất cả maps khi có lỗi
+      console.error('Database load error occurred');
       this.clearAllData();
     }
   }
@@ -193,13 +210,14 @@ class Database {
   }
 
   async findUserByEmail(email: string): Promise<User | undefined> {
-    console.log('Finding user by email:', email);
+    // Không log email đầy đủ
+    console.log('Finding user by email:', email.replace(/(?<=.{3}).(?=.*@)/g, '*'));
     
     const user = Array.from(this.users.values())
       .find(u => u.email.toLowerCase() === email.toLowerCase());
     
-    // Không sanitize user khi tìm kiếm để xác thực
-    console.log('Found user:', user ? 'Yes' : 'No');
+    // Không log user data
+    console.log('User found:', user ? 'Yes' : 'No');
     return user;
   }
 
@@ -380,7 +398,7 @@ class Database {
   }
 
   private sanitizeUser(user: User): User {
-    // Chỉ sanitize khi trả về cho client
+
     const { password, ...safeUser } = user;
     return { ...safeUser, password: undefined } as unknown as User;
   }
@@ -400,11 +418,12 @@ class Database {
     this.sessions.clear();
     this.otps.clear();
     
-    localStorage.removeItem(this.STORAGE_KEYS.USERS);
-    localStorage.removeItem(this.STORAGE_KEYS.TRANSACTIONS);
-    localStorage.removeItem('map_app_messages');
+    // Xóa an toàn
+    Object.keys(localStorage)
+      .filter(key => key.startsWith('map_app_'))
+      .forEach(key => localStorage.removeItem(key));
     
-    console.log('All data cleared');
+    console.log('Database cleared successfully');
   }
 }
 

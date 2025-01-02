@@ -13,6 +13,7 @@
   import { toast } from './Toast.vue'
 import { debounce } from 'lodash'
 import { MarkerManager } from '../utils/MarkerManager'
+import { apiKeys } from '../services/ApiKeyManager';
   
   declare const VITE_STADIA_API_KEY: string
   declare const VITE_THUNDERFOREST_API_KEY: string
@@ -172,84 +173,100 @@ import { MarkerManager } from '../utils/MarkerManager'
         return `${(meters / 1000).toFixed(1)}km`
       }
   
-      onMounted(() => {
-        mapInstance.value = L.map('map-container', {
-          scrollWheelZoom: true,
-          touchZoom: true,
-          fadeAnimation: true,
-          zoomAnimation: true,
-          markerZoomAnimation: true,
-          zoomControl: false,
-          preferCanvas: true, 
-          zoomSnap: 0.5, 
-          zoomDelta: 0.5,
-          wheelDebounceTime: 150, 
-          bounceAtZoomLimits: false, 
-          maxZoom: 18, 
-          renderer: L.canvas() 
-        }).setView([
-          Number(import.meta.env.VITE_DEFAULT_LAT), 
-          Number(import.meta.env.VITE_DEFAULT_LNG)
-        ], Number(import.meta.env.VITE_DEFAULT_ZOOM))
-        
-        L.tileLayer(`https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=${import.meta.env.VITE_STADIA_API_KEY}`, {
-          maxZoom: 18,
-          minZoom: 3,
-          tileSize: 512, 
-          zoomOffset: -1,
-          crossOrigin: true,
-          keepBuffer: 2,
-          updateWhenIdle: true, 
-          updateWhenZooming: false,
-          noWrap: true, 
-          bounds: [[-90, -180], [90, 180]] 
-        }).addTo(mapInstance.value)
+      onMounted(async () => {
+        try {
+          // Đợi các keys load xong
+          const [stadiaKey, defaultLat, defaultLng, defaultZoom] = await Promise.all([
+            apiKeys.getKey('VITE_STADIA_API_KEY'),
+            apiKeys.getKey('VITE_DEFAULT_LAT'),
+            apiKeys.getKey('VITE_DEFAULT_LNG'), 
+            apiKeys.getKey('VITE_DEFAULT_ZOOM')
+          ]);
   
-        markerManager.value = new MarkerManager(mapInstance.value)
-
-        const ZOOM_THRESHOLD = 6; 
-  
-        const createIslandLabel = (text: string) => {
-          return L.divIcon({
-            className: 'island-label vietnam-territory',
-            html: `<div class="label-wrapper"><span class="label-glow">${text}</span></div>`,
-            iconSize: [200, 30],
-            iconAnchor: [100, 15]
-          });
-        };
-  
-        const hoangSaMarker = L.marker([16.4, 112.0], {
-          icon: createIslandLabel('Hoàng Sa (Đà Nẵng - Việt Nam)')
-        }).addTo(mapInstance.value);
-  
-        const truongSaMarker = L.marker([8.64, 111.92], {
-          icon: createIslandLabel('Trường Sa (Khánh Hòa - Việt Nam)')
-        }).addTo(mapInstance.value);
-  
-        mapInstance.value.on('zoomend moveend', () => {
-        
-          const zoom = mapInstance.value?.getZoom() || 0;
-          const elements = document.querySelectorAll('.label-glow');
+          // Khởi tạo map sau khi có keys
+          mapInstance.value = L.map('map-container', {
+            scrollWheelZoom: true,
+            touchZoom: true,
+            fadeAnimation: true,
+            zoomAnimation: true,
+            markerZoomAnimation: true,
+            zoomControl: false,
+            preferCanvas: true, 
+            zoomSnap: 0.5, 
+            zoomDelta: 0.5,
+            wheelDebounceTime: 150, 
+            bounceAtZoomLimits: false, 
+            maxZoom: 18, 
+            renderer: L.canvas() 
+          }).setView([
+            Number(defaultLat),
+            Number(defaultLng)
+          ], Number(defaultZoom));
           
-          elements.forEach((el) => {
-            const htmlEl = el as HTMLElement;
-            if (zoom < ZOOM_THRESHOLD) {
-              htmlEl.style.opacity = '0';
-              htmlEl.style.visibility = 'hidden';
-            } else {
-              htmlEl.style.opacity = '1';
-              htmlEl.style.visibility = 'visible';
-              const scale = Math.min(1, Math.max(0.5, zoom / 13));
-              htmlEl.style.transform = `scale(${scale})`;
+          // Thêm tile layer với key đã load
+          L.tileLayer(`https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=${stadiaKey}`, {
+            maxZoom: 18,
+            minZoom: 3,
+            tileSize: 512, 
+            zoomOffset: -1,
+            crossOrigin: true,
+            keepBuffer: 2,
+            updateWhenIdle: true, 
+            updateWhenZooming: false,
+            noWrap: true, 
+            bounds: [[-90, -180], [90, 180]] 
+          }).addTo(mapInstance.value);
+  
+          // Khởi tạo marker manager
+          markerManager.value = new MarkerManager(mapInstance.value);
+  
+          const ZOOM_THRESHOLD = 6; 
+    
+          const createIslandLabel = (text: string) => {
+            return L.divIcon({
+              className: 'island-label vietnam-territory',
+              html: `<div class="label-wrapper"><span class="label-glow">${text}</span></div>`,
+              iconSize: [200, 30],
+              iconAnchor: [100, 15]
+            });
+          };
+    
+          const hoangSaMarker = L.marker([16.4, 112.0], {
+            icon: createIslandLabel('Hoàng Sa (Đà Nẵng - Việt Nam)')
+          }).addTo(mapInstance.value);
+    
+          const truongSaMarker = L.marker([8.64, 111.92], {
+            icon: createIslandLabel('Trường Sa (Khánh Hòa - Việt Nam)')
+          }).addTo(mapInstance.value);
+    
+          mapInstance.value.on('zoomend moveend', () => {
+          
+            const zoom = mapInstance.value?.getZoom() || 0;
+            const elements = document.querySelectorAll('.label-glow');
+            
+            elements.forEach((el) => {
+              const htmlEl = el as HTMLElement;
+              if (zoom < ZOOM_THRESHOLD) {
+                htmlEl.style.opacity = '0';
+                htmlEl.style.visibility = 'hidden';
+              } else {
+                htmlEl.style.opacity = '1';
+                htmlEl.style.visibility = 'visible';
+                const scale = Math.min(1, Math.max(0.5, zoom / 13));
+                htmlEl.style.transform = `scale(${scale})`;
+              }
+            });
+    
+            if (lastPosition.value && currentMarker.value) {
+              requestAnimationFrame(() => {
+                currentMarker.value?.setLatLng(lastPosition.value!)
+              })
             }
           });
-  
-          if (lastPosition.value && currentMarker.value) {
-            requestAnimationFrame(() => {
-              currentMarker.value?.setLatLng(lastPosition.value!)
-            })
-          }
-        });
+        } catch (error) {
+          console.error('Failed to initialize map:', error);
+          toast.show('Failed to load map. Please refresh the page.', 'error');
+        }
       })
   
       const centerMap = (latitude: number, longitude: number) => {

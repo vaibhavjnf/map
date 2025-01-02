@@ -12,20 +12,31 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
-    minify: 'esbuild',
+    minify: 'terser',
     cssMinify: true,
     cssCodeSplit: false,
     chunkSizeWarningLimit: 500,
+    sourcemap: false,
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    },
     rollupOptions: {
       output: {
         manualChunks: {
           leaflet: ['leaflet'],
-          vendor: ['vue']
+          vendor: ['vue'],
+          keys: ['/src/config/keys.ts']
         }
       }
     }
   },
   optimizeDeps: {
     include: ['leaflet']
+  },
+  define: {
+    __VUE_PROD_DEVTOOLS__: false,
   }
 })
