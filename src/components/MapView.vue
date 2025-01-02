@@ -256,19 +256,33 @@ import { MarkerManager } from '../utils/MarkerManager'
         mapInstance.value?.setView([latitude, longitude], 16)
       }
   
-      const addMarker = (latitude: number, longitude: number, popupText: string) => {
+      const addMarker = (latitude: number, longitude: number, popupText: string, type: 'gps' | 'search' = 'gps') => {
         if (!mapInstance.value || !markerManager.value) return
 
         const latlng = L.latLng(latitude, longitude)
-        const marker = markerManager.value.addMarker('gps', latlng, {
-          zIndexOffset: 1000,
-          icon: L.divIcon({
+        const icon = type === 'gps' ? 
+          {
             className: 'gps-marker',
             html: '<span class="material-icons">my_location</span>',
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
-          })
-        }, true) // Set isSpecial = true
+            iconSize: [24, 24] as [number, number],
+            iconAnchor: [12, 12] as [number, number]
+          } :
+          {
+            className: 'search-marker',
+            html: '<span class="material-icons">place</span>',
+            iconSize: [24, 24] as [number, number],
+            iconAnchor: [12, 24] as [number, number]
+          }
+
+        const marker = markerManager.value.addMarker(
+          type, 
+          latlng,
+          {
+            zIndexOffset: type === 'gps' ? 2000 : 1000,
+            icon: L.divIcon(icon)
+          },
+          type === 'gps' 
+        )
 
         marker.bindPopup(popupText)
       }
@@ -365,6 +379,18 @@ import { MarkerManager } from '../utils/MarkerManager'
 
   :deep(.gps-marker .material-icons) {
     color: #1976D2;
+    font-size: 24px;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+  }
+
+  :deep(.search-marker) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  :deep(.search-marker .material-icons) {
+    color: #D32F2F;
     font-size: 24px;
     filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
   }

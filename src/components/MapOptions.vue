@@ -255,23 +255,21 @@
   @media (max-width: 768px) {
     .map-options {
       bottom: 20px;
-      right: 110px; 
+      right: 10px; 
     }
 
     .map-style-buttons {
       position: fixed;
       bottom: 70px;
       right: 10px;
-      width: 75%; 
-      max-width: 260px;
-      left: 50%;
-      right: auto;
-      transform: translate(-50%, 100%); 
+      width: calc(100% - 20px);
+      max-width: 300px;
+      transform: translateY(100%); 
       transition: transform 0.3s ease, opacity 0.3s ease;
     }
 
     .map-style-buttons.is-open {
-      transform: translate(-50%, 0);
+      transform: translateY(0);
       opacity: 1;
       visibility: visible;
     }

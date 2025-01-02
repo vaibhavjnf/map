@@ -5,13 +5,24 @@ export class MarkerManager {
   private map: LeafletMap
   private markers: Map<string, Marker> = new Map()
   private positions: Map<string, LatLng> = new Map()
-  private specialMarkers: Set<string> = new Set(['gps', 'current']) 
+  private specialMarkers: Set<string> = new Set(['gps']) // Chỉ GPS là special
 
   constructor(map: LeafletMap) {
     this.map = map
     
+    // Sử dụng requestAnimationFrame để ưu tiên cập nhật vị trí GPS marker
     this.map.on('zoomend moveend', () => {
-      requestAnimationFrame(() => this.updateMarkerPositions())
+      requestAnimationFrame(() => {
+        // Cập nhật GPS marker trước
+        const gpsMarker = this.markers.get('gps')
+        const gpsPosition = this.positions.get('gps')
+        if (gpsMarker && gpsPosition) {
+          gpsMarker.setLatLng(gpsPosition)
+        }
+
+        // Sau đó mới cập nhật các marker khác
+        this.updateMarkerPositions()
+      })
     })
   }
 
