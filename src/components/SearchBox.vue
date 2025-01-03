@@ -47,9 +47,10 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, nextTick, inject } from 'vue'
+import { defineComponent, ref, nextTick, watch } from 'vue'
 import debounce from 'lodash/debounce'
 import L from 'leaflet'
+import { activeMenu, setActiveMenu } from '../utils/menuState'
 
 // Tăng cache lên 30 phút
 const CACHE_DURATION = 1000 * 60 * 30
@@ -239,6 +240,10 @@ export default defineComponent({
     }, 200) 
 
     const selectLocation = (result: SearchResult) => {
+      if (activeMenu.value === 'explore') {
+        setActiveMenu(null)
+      }
+
       const key = `${result.lat}-${result.lon}`
       recentSearches.set(key, result)
       
@@ -265,6 +270,14 @@ export default defineComponent({
       if (distance < 1000) return `${Math.round(distance)}m`
       return `${(distance / 1000).toFixed(1)}km`
     }
+
+    // Thêm watch để đóng search results khi mở auth modal
+    watch(activeMenu, (newMenu) => {
+      if (newMenu === 'auth') {
+        showResults.value = false
+        searchQuery.value = ''
+      }
+    })
 
     return {
       searchQuery,

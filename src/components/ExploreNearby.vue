@@ -7,13 +7,18 @@
 
     <div class="bottom-sheet" :class="{ 'is-open': isOpen }">
       <div class="bottom-sheet-backdrop" @click="toggleMenu"></div>
-      <div class="bottom-sheet-container">
-
+      <div 
+        class="bottom-sheet-container" 
+        @touchstart="handleStart"
+        @touchmove="handleMove"
+        @touchend="handleEnd"
+        @mousedown="handleStart"
+        @mousemove="handleMove"
+        @mouseup="handleEnd"
+        @mouseleave="handleEnd"
+      >
         <div class="sheet-header">
           <div class="handle-bar"></div>
-          <button class="close-button" @click="toggleMenu">
-            <span class="material-icons">close</span>
-          </button>
           <h2>Explore Nearby</h2>
         </div>
 
@@ -97,6 +102,11 @@ export default defineComponent({
     const lastSearch = ref<{category: string, radius: number} | null>(null)
     const isSearching = ref(false)
     const showRadiusSelect = ref(false)
+    const isMobile = ref(window.innerWidth < 768)
+    
+    window.addEventListener('resize', () => {
+      isMobile.value = window.innerWidth < 768
+    })
 
     const categories = [
       { label: 'Restaurant', value: 'amenity=restaurant', icon: 'restaurant' },
@@ -284,6 +294,73 @@ export default defineComponent({
       showRadiusSelect.value = !showRadiusSelect.value
     }
 
+    let touchStartY = 0;
+    let touchMoveY = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (!isMobile.value) return
+      touchStartY = e.touches[0].clientY;
+      touchMoveY = touchStartY;
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isMobile.value) return
+      touchMoveY = e.touches[0].clientY;
+      const deltaY = touchMoveY - touchStartY;
+      
+      if (deltaY > 0) { 
+        e.preventDefault();
+        const container = e.currentTarget as HTMLElement;
+        container.style.transform = `translateY(${deltaY}px)`;
+      }
+    }
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (!isMobile.value) return
+      const deltaY = touchMoveY - touchStartY;
+      const container = e.currentTarget as HTMLElement;
+      container.style.transform = '';
+      
+      if (deltaY > 100) { 
+        toggleMenu();
+      }
+    }
+
+    let startY = 0;
+    let moveY = 0;
+    let isDragging = false;
+
+    const handleStart = (e: TouchEvent | MouseEvent) => {
+      if (!isMobile.value) return;
+      isDragging = true;
+      startY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      moveY = startY;
+    }
+
+    const handleMove = (e: TouchEvent | MouseEvent) => {
+      if (!isMobile.value || !isDragging) return;
+      moveY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      const deltaY = moveY - startY;
+      
+      if (deltaY > 0) {
+        e.preventDefault();
+        const container = e.currentTarget as HTMLElement;
+        container.style.transform = `translateY(${deltaY}px)`;
+      }
+    }
+
+    const handleEnd = (e: TouchEvent | MouseEvent) => {
+      if (!isMobile.value || !isDragging) return;
+      isDragging = false;
+      const deltaY = moveY - startY;
+      const container = e.currentTarget as HTMLElement;
+      container.style.transform = '';
+      
+      if (deltaY > 100) {
+        toggleMenu();
+      }
+    }
+
     return {
       isOpen,
       categories,
@@ -299,7 +376,14 @@ export default defineComponent({
       updateLocation,
       showRadiusSelect,
       toggleRadiusSelect,
-      radiusOptions
+      radiusOptions,
+      handleTouchStart,
+      handleTouchMove,
+      handleTouchEnd,
+      isMobile,
+      handleStart,
+      handleMove, 
+      handleEnd
     }
   }
 })

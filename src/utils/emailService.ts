@@ -57,7 +57,7 @@ class EmailService {
         to_email: email,
         to_name: email.split('@')[0],
         otp_code: otp,  
-        from_name: 'AI Map'  
+        from_name: 'GeoMinds'  
       };
 
       const response = await (window as any).emailjs.send(

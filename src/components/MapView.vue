@@ -17,9 +17,6 @@ import { apiKeys } from '../services/ApiKeyManager';
   
   declare const VITE_STADIA_API_KEY: string
   declare const VITE_THUNDERFOREST_API_KEY: string
-  declare const VITE_DEFAULT_LAT: string
-  declare const VITE_DEFAULT_LNG: string
-  declare const VITE_DEFAULT_ZOOM: string
 
   interface ShowNearbyPlacesParams {
     results: any[];
@@ -27,6 +24,16 @@ import { apiKeys } from '../services/ApiKeyManager';
     category: string;
     radius: number;
     random: boolean;
+  }
+
+  // Định nghĩa giá trị mặc định
+  const DEFAULT_SETTINGS = {
+    DEFAULT_LAT: 16.047079,  // Vị trí mặc định (VN)
+    DEFAULT_LNG: 108.206230,
+    DEFAULT_ZOOM: 12,
+    MIN_ZOOM: 3,
+    MAX_ZOOM: 18,
+    STORAGE_KEY: 'last_map_position'
   }
   
   export default defineComponent({
@@ -172,18 +179,55 @@ import { apiKeys } from '../services/ApiKeyManager';
 
         return `${(meters / 1000).toFixed(1)}km`
       }
+
+      const saveMapPosition = () => {
+        if (!mapInstance.value) return;
+        const center = mapInstance.value.getCenter();
+        const zoom = mapInstance.value.getZoom();
+        
+        localStorage.setItem(DEFAULT_SETTINGS.STORAGE_KEY, JSON.stringify({
+          lat: center.lat,
+          lng: center.lng,
+          zoom: zoom,
+          timestamp: Date.now()
+        }));
+      };
+
+      const loadLastPosition = (): {lat: number, lng: number, zoom: number} => {
+        try {
+          const saved = localStorage.getItem(DEFAULT_SETTINGS.STORAGE_KEY);
+          if (saved) {
+            const data = JSON.parse(saved);
+            // Chỉ sử dụng vị trí đã lưu trong vòng 24h
+            if (Date.now() - data.timestamp < 24 * 60 * 60 * 1000) {
+              return {
+                lat: data.lat,
+                lng: data.lng,
+                zoom: data.zoom
+              };
+            }
+          }
+        } catch (e) {
+          console.error('Error loading last position:', e);
+        }
+        return {
+          lat: DEFAULT_SETTINGS.DEFAULT_LAT,
+          lng: DEFAULT_SETTINGS.DEFAULT_LNG,
+          zoom: DEFAULT_SETTINGS.DEFAULT_ZOOM
+        };
+      };
   
       onMounted(async () => {
         try {
-          // Đợi các keys load xong
-          const [stadiaKey, defaultLat, defaultLng, defaultZoom] = await Promise.all([
-            apiKeys.getKey('VITE_STADIA_API_KEY'),
-            apiKeys.getKey('VITE_DEFAULT_LAT'),
-            apiKeys.getKey('VITE_DEFAULT_LNG'), 
-            apiKeys.getKey('VITE_DEFAULT_ZOOM')
-          ]);
-  
-          // Khởi tạo map sau khi có keys
+         
+          const savedStyle = localStorage.getItem('defaultMapStyle') || 'alidade_smooth'
+          currentStyle.value = savedStyle
+
+          // Chỉ lấy Stadia API key, bỏ các giá trị mặc định
+          const stadiaKey = await apiKeys.getKey('VITE_STADIA_API_KEY');
+
+          const lastPos = loadLastPosition();
+          
           mapInstance.value = L.map('map-container', {
             scrollWheelZoom: true,
             touchZoom: true,
@@ -194,30 +238,42 @@ import { apiKeys } from '../services/ApiKeyManager';
             preferCanvas: true, 
             zoomSnap: 0.5, 
             zoomDelta: 0.5,
-            wheelDebounceTime: 150, 
+            wheelDebounceTime: 40,
+            wheelPxPerZoomLevel: 80,
             bounceAtZoomLimits: false, 
-            maxZoom: 18, 
-            renderer: L.canvas() 
-          }).setView([
-            Number(defaultLat),
-            Number(defaultLng)
-          ], Number(defaultZoom));
+            maxZoom: DEFAULT_SETTINGS.MAX_ZOOM,
+            minZoom: DEFAULT_SETTINGS.MIN_ZOOM,
+            renderer: L.canvas({
+              padding: 0.5, 
+              tolerance: 0.8 
+            }),
+           
+            trackResize: true,
+            inertia: true,
+            inertiaDeceleration: 3000,
+            inertiaMaxSpeed: 6000,
+            easeLinearity: 0.25
+          }).setView([lastPos.lat, lastPos.lng], lastPos.zoom);
           
-          // Thêm tile layer với key đã load
-          L.tileLayer(`https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=${stadiaKey}`, {
-            maxZoom: 18,
-            minZoom: 3,
+          L.tileLayer(`https://tiles.stadiamaps.com/tiles/${savedStyle}/{z}/{x}/{y}{r}.png?api_key=${stadiaKey}`, {
+            maxZoom: DEFAULT_SETTINGS.MAX_ZOOM,
+            minZoom: DEFAULT_SETTINGS.MIN_ZOOM,
             tileSize: 512, 
             zoomOffset: -1,
             crossOrigin: true,
-            keepBuffer: 2,
+            keepBuffer: 4,
             updateWhenIdle: true, 
             updateWhenZooming: false,
             noWrap: true, 
-            bounds: [[-90, -180], [90, 180]] 
+            bounds: [[-90, -180], [90, 180]],
+ 
+            subdomains: 'abcd', 
+            maxNativeZoom: 18,
+            minNativeZoom: 0,
+            detectRetina: true, 
+            className: 'leaflet-tile-container'
           }).addTo(mapInstance.value);
   
-          // Khởi tạo marker manager
           markerManager.value = new MarkerManager(mapInstance.value);
   
           const ZOOM_THRESHOLD = 6; 
@@ -262,6 +318,30 @@ import { apiKeys } from '../services/ApiKeyManager';
                 currentMarker.value?.setLatLng(lastPosition.value!)
               })
             }
+          });
+
+          mapInstance.value.on('zoomstart', () => {
+            document.body.style.cursor = 'grabbing';
+          });
+  
+          mapInstance.value.on('zoomend', () => {
+            document.body.style.cursor = 'auto';
+          });
+  
+          mapInstance.value.on('moveend', () => {
+            const center = mapInstance.value!.getCenter();
+            const bounds = mapInstance.value!.getBounds().pad(0.5);
+     
+            mapInstance.value!.eachLayer((layer: any) => {
+              if (layer._url) {
+                layer._addTilesFromCenterOut(bounds);
+              }
+            });
+          });
+
+          // Thêm event listener để lưu vị trí
+          mapInstance.value.on('moveend zoomend', () => {
+            saveMapPosition();
           });
         } catch (error) {
           console.error('Failed to initialize map:', error);
@@ -410,5 +490,23 @@ import { apiKeys } from '../services/ApiKeyManager';
     color: #D32F2F;
     font-size: 24px;
     filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+  }
+
+  :deep(.leaflet-tile-container) {
+    will-change: transform;
+    transform-style: preserve-3d;
+    backface-visibility: hidden;
+  }
+
+  :deep(.leaflet-tile) {
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+
+  :deep(.leaflet-container) {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   </style>

@@ -1,6 +1,7 @@
 <template>
   <MapView ref="mapView" />
   <SearchBox 
+    v-if="activeMenu !== 'auth'"
     :currentLocation="currentLocation" 
     @select-location="handleSearchSelect" 
   />
@@ -165,7 +166,8 @@ export default defineComponent({
       currentLocation,
       handleAISearch,
       handleAIDirections,
-      handleAIExplore
+      handleAIExplore,
+      activeMenu
     }
   }
 })
@@ -186,14 +188,16 @@ html, body {
     display: none;
   }
 
+  /* Bỏ rule ẩn account khi explore */
+  /* body[data-active-menu="explore"] .account-container { 
+    display: none;
+  } */
+
   body[data-active-menu="chat"] .explore-fab,
   body[data-active-menu="chat"] .gps-button,
-  body[data-active-menu="chat"] .map-options {
-    display: none;
-  }
-
+  body[data-active-menu="chat"] .map-options,
   body[data-active-menu="chat"] .account-container,
-  body[data-active-menu="explore"] .account-container {
+  body[data-active-menu="chat"] .search-container { /* Thêm search-container vào */
     display: none;
   }
 
@@ -207,6 +211,17 @@ html, body {
   body[data-active-menu="auth"] .gps-button,
   body[data-active-menu="auth"] .map-options {
     display: none;
+  }
+
+  /* Thêm rule ẩn search khi mở auth modal */
+  body[data-active-menu="auth"] .search-container {
+    display: none;
+  }
+
+  /* Thêm rule mới để ẩn explore khi có kết quả search */
+  body:not([data-active-menu]) .bottom-sheet,
+  body[data-active-menu="search"] .bottom-sheet {
+    display: none !important;
   }
 }
 

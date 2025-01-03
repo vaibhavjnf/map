@@ -9,7 +9,11 @@
         </div>
       </button>
 
-      <div v-if="showMenu" class="account-menu" v-click-outside="closeMenu">
+      <div 
+        v-if="showMenu && activeMenu !== 'explore'" 
+        class="account-menu" 
+        v-click-outside="closeMenu"
+      >
         <div class="menu-header">
           <span class="email">{{ currentUser?.email }}</span>
           <span class="credits-label">Credits: {{ currentUser?.aiCredits }}</span>
@@ -75,15 +79,8 @@ export default defineComponent({
     }
 
     watch(activeMenu, (newMenu) => {
-      if (window.innerWidth < 768) {
-        if (newMenu === 'chat') {
-          closeMenu()
-        }
-      } else {
-     
-        if (newMenu === 'chat') {
-          closeMenu() 
-        }
+      if (newMenu === 'explore' || newMenu === 'chat') {
+        closeMenu()
       }
     })
 
@@ -104,7 +101,8 @@ export default defineComponent({
       closeMenu,
       handleLogout,
       handleAuthSuccess,
-      closeAuthModal
+      closeAuthModal,
+      activeMenu
     }
   }
 })

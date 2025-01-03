@@ -8,7 +8,7 @@
   color: white;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   cursor: pointer;
-  z-index: 1000;
+  z-index: 1000; 
   
   left: 24px;
   top: 80px;
@@ -41,9 +41,10 @@
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 999;
+  z-index: 1005; /* Thấp hơn search */
   visibility: hidden;
-  transition: visibility 0s linear 0.3s;
+
+  transition: visibility 0s linear 0.2s;
 }
 
 .bottom-sheet.is-open {
@@ -59,7 +60,10 @@
   bottom: 0;
   background: rgba(0,0,0,0.5);
   opacity: 0;
-  transition: opacity 0.3s ease;
+  z-index: 1004; /* Thấp hơn bottom sheet */
+
+  transition: opacity 0.2s ease;
+  display: none; /* Mặc định ẩn backdrop */
 }
 
 .bottom-sheet.is-open .bottom-sheet-backdrop {
@@ -74,7 +78,8 @@
   background: white;
   border-radius: 28px 28px 0 0;
   transform: translateY(100%);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+ 
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   padding: 12px 24px 0; 
   max-height: 85vh;
   overflow-y: auto;
@@ -84,6 +89,10 @@
   scrollbar-width: none; 
   -ms-overflow-style: none; 
   font-family: 'Product Sans', 'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif;
+ 
+  will-change: transform;
+
+  -webkit-transform: translateY(100%) translateZ(0);
 }
 
 .bottom-sheet-container::-webkit-scrollbar {
@@ -101,11 +110,12 @@
 }
 
 .handle-bar {
-  width: 32px;
-  height: 4px;
+  width: 40px;
+  height: 5px;
   background: #E0E0E0;
-  border-radius: 2px;
+  border-radius: 3px;
   margin: 8px auto 20px;
+  cursor: grab;
 }
 
 .sheet-header h2 {
@@ -118,19 +128,6 @@
   margin: 0;
   letter-spacing: -0.5px;
   font-family: 'Product Sans', 'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-.close-button {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  padding: 8px;
-  cursor: pointer;
-  color: #666;
-  z-index: 1;
 }
 
 .radius-section {
@@ -163,13 +160,22 @@
   background: white;
   cursor: pointer;
   font-size: 13px;
-  transition: all 0.2s ease;
+
+  transition: all 0.15s ease;
+  transform: translateZ(0);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.radius-btn:active {
+  transform: scale(0.95) translateZ(0);
 }
 
 .radius-btn.active {
   background: #E8F0FE;
   border-color: #1A73E8;
   color: #1A73E8;
+
+  transition: all 0.1s ease;
 }
 
 .radius-slider,
@@ -345,6 +351,8 @@
     height: 100%;
     padding: 12px 24px 0;
     overflow: hidden;
+    touch-action: pan-y; /* Cho phép vuốt trên mobile */
+    z-index: 1006; /* Cao hơn bottom sheet nhưng thấp hơn search */
   }
 
   .categories-section {
@@ -391,6 +399,10 @@
     inset: 0;
     border-radius: 28px 28px 0 0;
   }
+
+  .bottom-sheet-backdrop {
+    display: block; /* Chỉ hiện backdrop trên mobile */
+  }
 }
 
 @media (min-width: 768px) {
@@ -409,10 +421,17 @@
     width: 480px;
     max-height: 80vh;
     border-radius: 28px;
+    /* Sửa lại transform origin và timing */
+    transform-origin: center center;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    touch-action: none; /* Vô hiệu hóa vuốt trên desktop */
   }
 
   .bottom-sheet.is-open .bottom-sheet-container {
     transform: translate(-50%, -50%) scale(1);
+    /* Thêm hardware acceleration */
+    -webkit-transform: translate(-50%, -50%) scale(1) translateZ(0);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15); /* Thêm shadow thay vì backdrop */
   }
 
   .categories-grid {

@@ -6,7 +6,7 @@
     
     <div class="chat-window" :class="{ 'is-open': isOpen }">
       <div class="chat-header">
-        <h3>AI Assistant</h3>
+        <h3>AI GeoMinds</h3>
         <button class="close-btn" @click="toggleChat">
           <span class="material-icons">close</span>
         </button>
@@ -87,7 +87,7 @@ export default defineComponent({
         chatInitialized.value = true
         
         if (isNew) {
-          addMessage('model', 'Xin chào! Tôi là AKI BOT.') 
+          messages.value = [{ role: 'model', text: 'Xin chào! Tôi là AKI BOT.' }]
         } else {
           messages.value = previousMessages
         }
@@ -103,16 +103,6 @@ export default defineComponent({
         nextTick(() => {
           scrollToBottom()
         })
-      }
-    }
-
-    const loadPreviousMessages = async () => {
-      if (currentUser.value?.id) {
-        const previousMessages = db.getUserMessages(currentUser.value.id);
-        messages.value = previousMessages.map((msg: { role: any; content: any }) => ({
-          role: msg.role,
-          text: msg.content
-        }));
       }
     }
 
@@ -218,11 +208,7 @@ export default defineComponent({
     const handleAuthSuccess = async () => {
       showAuth.value = false
       messages.value = []
-      await loadPreviousMessages()
-      
-      if (!messages.value.length) {
-        addMessage('model', `Xin chào! Tôi có thể giúp gì cho bạn?`)
-      }
+      await initializeChat() 
     }
 
     const scrollToBottom = () => {

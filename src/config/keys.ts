@@ -1,4 +1,3 @@
-
 class SecureKeyStore {
   private static instance: SecureKeyStore;
   private store: Map<string, string>;
@@ -60,17 +59,17 @@ export const initializeKeys = () => {
 
   keyStore.setKey('STADIA', env.VITE_STADIA_API_KEY);
   keyStore.setKey('THUNDERFOREST', env.VITE_THUNDERFOREST_API_KEY);
-  keyStore.setKey('DEFAULT_LAT', env.VITE_DEFAULT_LAT);
-  keyStore.setKey('DEFAULT_LNG', env.VITE_DEFAULT_LNG); 
-  keyStore.setKey('DEFAULT_ZOOM', env.VITE_DEFAULT_ZOOM);
-
   keyStore.setKey('GEMINI', env.VITE_GEMINI_API_KEY);
-
   keyStore.setKey('EMAILJS_PUBLIC', env.VITE_EMAILJS_PUBLIC_KEY);
   keyStore.setKey('EMAILJS_SERVICE', env.VITE_EMAILJS_SERVICE_ID);
   keyStore.setKey('EMAILJS_TEMPLATE', env.VITE_EMAILJS_TEMPLATE_ID);
-
   keyStore.setKey('AUTH_SALT', env.VITE_AUTH_SALT);
+
+  const defaults = {
+    DEFAULT_LAT: env.VITE_DEFAULT_LAT,
+    DEFAULT_LNG: env.VITE_DEFAULT_LNG,
+    DEFAULT_ZOOM: env.VITE_DEFAULT_ZOOM
+  };
 
   Object.keys(env).forEach(key => {
     if (key.startsWith('VITE_')) {
@@ -79,9 +78,16 @@ export const initializeKeys = () => {
   });
 
   console.log('Keys initialized securely');
+  
+  return defaults;
 };
 
-export const getKey = (name: string) => keyStore.getKey(name);
+export const getKey = (name: string) => {
+  if (name.includes('DEFAULT_')) {
+    return import.meta.env[`VITE_${name}`] || '';
+  }
+  return keyStore.getKey(name);
+};
 
 export const maskKey = (key: string) => {
   if (!key) return '****';

@@ -22,7 +22,7 @@ export const toast = {
     }
 
     if (type === 'error') {
-      this.message.value = `Error: ${msg}\n\nPlease check console for more details.`
+      this.message.value = msg
       duration = 8000 
       console.error('Toast Error:', msg)
     } else {
