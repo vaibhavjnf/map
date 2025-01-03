@@ -23,7 +23,6 @@ interface ShowNearbyPlacesParams {
   random: boolean;
 }
 
-// Default settings
 const DEFAULT_SETTINGS = {
   DEFAULT_LAT: 16.047079,
   DEFAULT_LNG: 108.206230,

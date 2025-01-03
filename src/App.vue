@@ -218,7 +218,6 @@ html, body {
 }
 
 @media (min-width: 768px) {
-  body[data-active-menu] .explore-fab,
   body[data-active-menu] .chat-container,
   body[data-active-menu] .gps-button,
   body[data-active-menu] .map-options {

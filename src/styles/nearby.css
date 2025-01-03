@@ -346,13 +346,45 @@
   animation: spin 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
+/* Styles cho nút đóng */
+.close-button {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: none;
+}
+
+.close-button:hover {
+  background: rgba(0,0,0,0.1);
+  color: #333;
+}
+
+/* Fix các transition delay */
+.radius-buttons,
+.radius-btn,
+.close-button,
+.sheet-header,
+.bottom-sheet,
+.bottom-sheet-container {
+  transition: none !important;
+}
+
 @media (max-width: 767px) {
   .bottom-sheet-container {
     height: 100%;
     padding: 12px 24px 0;
     overflow: hidden;
-    touch-action: pan-y; /* Cho phép vuốt trên mobile */
-    z-index: 1006; /* Cao hơn bottom sheet nhưng thấp hơn search */
+    touch-action: pan-y;
+    z-index: 1006; 
   }
 
   .categories-section {
@@ -401,7 +433,11 @@
   }
 
   .bottom-sheet-backdrop {
-    display: block; /* Chỉ hiện backdrop trên mobile */
+    display: block; 
+  }
+
+  .close-button {
+    display: none;
   }
 }
 
@@ -421,17 +457,16 @@
     width: 480px;
     max-height: 80vh;
     border-radius: 28px;
-    /* Sửa lại transform origin và timing */
+ 
     transform-origin: center center;
     transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    touch-action: none; /* Vô hiệu hóa vuốt trên desktop */
+    touch-action: none; 
   }
 
   .bottom-sheet.is-open .bottom-sheet-container {
     transform: translate(-50%, -50%) scale(1);
-    /* Thêm hardware acceleration */
     -webkit-transform: translate(-50%, -50%) scale(1) translateZ(0);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.15); /* Thêm shadow thay vì backdrop */
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
   }
 
   .categories-grid {

@@ -1,7 +1,7 @@
 <template>
   <div class="explore-container">
 
-    <button class="explore-fab" :class="{ 'is-hidden': isOpen }" @click="toggleMenu">
+    <button class="explore-fab" @click="toggleMenu">
       <span class="material-icons">explore</span>
     </button>
 
@@ -20,6 +20,10 @@
         <div class="sheet-header">
           <div class="handle-bar"></div>
           <h2>Explore Nearby</h2>
+          <!-- Thêm nút đóng cho PC -->
+          <button v-if="!isMobile" class="close-button" @click="toggleMenu">
+            <span class="material-icons">close</span>
+          </button>
         </div>
 
         <div class="radius-section">
@@ -141,10 +145,6 @@ export default defineComponent({
         setActiveMenu(null)
       } else {
         setActiveMenu('explore')
-        if (lastSearch.value) {
-          selectedCategory.value = lastSearch.value.category
-          searchRadius.value = lastSearch.value.radius
-        }
       }
     }
 
