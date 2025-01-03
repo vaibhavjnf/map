@@ -179,11 +179,11 @@ export default defineComponent({
           center: [lastPos.lat, lastPos.lng] as L.LatLngTuple,
           zoom: lastPos.zoom,
           fadeAnimation: false,
-          markerZoomAnimation: false,
-          zoomAnimation: true,
-          zoomSnap: 0.5,
-          wheelDebounceTime: 40,
-          preferCanvas: true
+          markerZoomAnimation: false,  // Tắt animation khi zoom cho markers
+          zoomAnimation: false,        // Tắt animation zoom
+          wheelDebounceTime: 0,        // Giảm độ trễ của scroll wheel
+          preferCanvas: true,
+          renderer: L.canvas()         // Sử dụng canvas renderer
         })
 
         const tileLayer = await MapSettingsManager.createTileLayer(savedStyle)
@@ -220,10 +220,14 @@ export default defineComponent({
 
         mapInstance.value.on('zoomstart', () => {
           document.body.style.cursor = 'grabbing';
+          // Thêm class để ngăn transition trong quá trình zoom
+          document.body.classList.add('is-zooming');
         });
 
         mapInstance.value.on('zoomend', () => {
           document.body.style.cursor = 'auto';
+          // Xóa class sau khi zoom xong
+          document.body.classList.remove('is-zooming');
         });
 
         mapInstance.value.on('moveend', () => {
@@ -289,4 +293,11 @@ export default defineComponent({
 
 <style scoped>
 @import "../styles/map.css";
+
+/* Thêm CSS để ngăn transition khi zoom */
+:global(body.is-zooming) .gps-marker,
+:global(body.is-zooming) .search-marker {
+  transition: none !important;
+  transform: none !important;
+}
 </style>
