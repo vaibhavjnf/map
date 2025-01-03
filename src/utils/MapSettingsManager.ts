@@ -44,7 +44,12 @@ export class MapSettingsManager {
       `https://tiles.stadiamaps.com/tiles/${style}/{z}/{x}/{y}{r}.png?api_key=${stadiaKey}`,
       {
         maxZoom: this.DEFAULT_SETTINGS.MAX_ZOOM,
-        attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>'
+        attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>',
+        updateWhenZooming: false,
+        updateWhenIdle: true,
+        keepBuffer: 2,
+        noWrap: false,
+        crossOrigin: true
       }
     )
   }

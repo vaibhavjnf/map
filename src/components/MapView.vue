@@ -178,7 +178,13 @@ export default defineComponent({
         mapInstance.value = L.map('map-container', {
           ...MapSettingsManager.getMapOptions(),
           center: [lastPos.lat, lastPos.lng] as L.LatLngTuple,
-          zoom: lastPos.zoom
+          zoom: lastPos.zoom,
+          fadeAnimation: false,
+          markerZoomAnimation: false,
+          zoomAnimation: true,
+          zoomSnap: 0.5,
+          wheelDebounceTime: 40,
+          preferCanvas: true
         })
 
         const tileLayer = await MapSettingsManager.createTileLayer(savedStyle)
@@ -223,13 +229,7 @@ export default defineComponent({
 
         mapInstance.value.on('moveend', () => {
           const center = mapInstance.value!.getCenter();
-          const bounds = mapInstance.value!.getBounds().pad(0.5);
-   
-          mapInstance.value!.eachLayer((layer: any) => {
-            if (layer._url) {
-              layer._addTilesFromCenterOut(bounds);
-            }
-          });
+          MapSettingsManager.saveMapPosition(mapInstance.value!)
         });
 
         mapInstance.value.on('moveend zoomend', () => {
