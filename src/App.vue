@@ -188,16 +188,11 @@ html, body {
     display: none;
   }
 
-  /* Bỏ rule ẩn account khi explore */
-  /* body[data-active-menu="explore"] .account-container { 
-    display: none;
-  } */
-
   body[data-active-menu="chat"] .explore-fab,
   body[data-active-menu="chat"] .gps-button,
   body[data-active-menu="chat"] .map-options,
   body[data-active-menu="chat"] .account-container,
-  body[data-active-menu="chat"] .search-container { /* Thêm search-container vào */
+  body[data-active-menu="chat"] .search-container { 
     display: none;
   }
 
@@ -205,7 +200,6 @@ html, body {
     display: none;
   }
 
-  /* Thêm rules mới để ẩn các nút khi mở auth modal */
   body[data-active-menu="auth"] .explore-fab,
   body[data-active-menu="auth"] .chat-container,
   body[data-active-menu="auth"] .gps-button,
@@ -213,12 +207,10 @@ html, body {
     display: none;
   }
 
-  /* Thêm rule ẩn search khi mở auth modal */
   body[data-active-menu="auth"] .search-container {
     display: none;
   }
 
-  /* Thêm rule mới để ẩn explore khi có kết quả search */
   body:not([data-active-menu]) .bottom-sheet,
   body[data-active-menu="search"] .bottom-sheet {
     display: none !important;
@@ -233,7 +225,6 @@ html, body {
     display: block !important;
   }
 
-  /* Thêm rules mới cho desktop */
   body[data-active-menu="chat"] .account-menu {
     display: none;
   }

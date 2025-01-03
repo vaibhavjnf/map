@@ -2,6 +2,7 @@
   height: 100vh;
   width: 100vw;
   position: fixed;
+  background: transparent;
 }
 
 .island-label {
@@ -88,4 +89,102 @@
   background-size: 20px 20px;
   pointer-events: none;
   z-index: -1;
+}
+
+.leaflet-fade-anim .leaflet-tile {
+  will-change: opacity;
+  transition: opacity 0.2s linear;
+}
+
+.leaflet-zoom-anim .leaflet-zoom-animated {
+  will-change: transform;
+  transition: transform 0.25s cubic-bezier(0,0,0.25,1);
+}
+
+.place-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px !important;
+  height: 24px !important;
+  margin-left: -12px !important;
+  margin-top: -24px !important;
+  pointer-events: auto !important;
+  z-index: 1000 !important; 
+}
+
+.place-marker .material-icons {
+  color: #E91E63;
+  font-size: 24px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+  position: relative;
+  z-index: 1;
+}
+
+.place-marker:hover .material-icons {
+  transform: none;
+}
+
+.leaflet-popup-content {
+  margin: 10px 12px;
+  line-height: 1.5;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.place-marker.google .material-icons {
+  color: #4285F4;
+}
+
+.place-marker.here .material-icons {
+  color: #00AFD7;
+}
+
+.place-marker.openstreetmap .material-icons {
+  color: #7EBC6F;
+}
+
+.gps-marker, .search-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gps-marker .material-icons {
+  color: #1976D2;
+  font-size: 24px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+}
+
+.search-marker .material-icons {
+  color: #D32F2F;
+  font-size: 24px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+}
+
+.leaflet-tile-container {
+  will-change: transform;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+.leaflet-tile {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+.leaflet-container {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (max-width: 768px) {
+  .leaflet-control-zoom {
+    display: none;
+  }
 }

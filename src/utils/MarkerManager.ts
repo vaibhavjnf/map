@@ -2,6 +2,9 @@ import type { Map as LeafletMap, Marker, LatLng } from 'leaflet'
 import L from 'leaflet'
 
 export class MarkerManager {
+  clearMarkersByType(arg0: string) {
+    throw new Error('Method not implemented.')
+  }
   private map: LeafletMap
   private markers: Map<string, Marker> = new Map()
   private positions: Map<string, LatLng> = new Map()
