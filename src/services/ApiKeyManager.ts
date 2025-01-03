@@ -1,11 +1,4 @@
-import { initializeKeys, getKey } from '../config/keys';
-import { getSecret } from '../config/secrets';
-
-const loadKeys = async () => {
-  await import('../config/keys').then(module => {
-    module.initializeKeys();
-  });
-};
+import { getKey } from '../config/keys';
 
 class ApiKeyManager {
   private static instance: ApiKeyManager;
@@ -20,22 +13,23 @@ class ApiKeyManager {
     return ApiKeyManager.instance;
   }
 
-  private async init() {
+  public async getApiKey(keyName: string): Promise<string> {
     if (!this.initialized) {
-      await loadKeys();
       this.initialized = true;
-      console.log('API Keys loaded securely');
+      console.log('API Keys ready');
     }
-  }
-
-  public async getKey(keyName: string): Promise<string> {
-    await this.init();
-    return getSecret(keyName);
+    // Không thêm VITE_ prefix vì đã được xử lý trong getKey
+    const key = await getKey(keyName);
+    if (!key) {
+      console.warn(`API key not found: ${keyName}`);
+      return ''; // Return empty string instead of throwing error
+    }
+    return key;
   }
 }
 
 const manager = ApiKeyManager.getInstance();
 
 export const apiKeys = {
-  getKey: (name: string) => manager.getKey(name)
+  getKey: (name: string) => manager.getApiKey(name)
 };

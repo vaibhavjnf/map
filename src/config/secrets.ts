@@ -1,7 +1,5 @@
 import { getEnv } from './envLoader';
 
-const maskValue = (value: string) => '****';
-
 class SecretManager {
   private static instance: SecretManager;
   private secrets: Map<string, string>;
@@ -15,6 +13,7 @@ class SecretManager {
 
   private initializeSecrets() {
     const env = getEnv();
+    console.log('Available env keys:', Object.keys(env).filter(k => k.startsWith('VITE_'))); // Debug log
     
     Object.entries(env).forEach(([key, value]) => {
       if (key.startsWith('VITE_')) {
@@ -22,6 +21,7 @@ class SecretManager {
       }
     });
 
+    // Xóa env sau khi đã lưu
     Object.keys(env).forEach(key => {
       if (key.startsWith('VITE_')) {
         delete (env as any)[key];
@@ -35,13 +35,19 @@ class SecretManager {
   }
 
   private encrypt(value: string): string {
-
-    return btoa(value);
+    const shuffled = value.split('').reverse().join('');
+    const xored = shuffled.split('').map(char => 
+      String.fromCharCode(char.charCodeAt(0) ^ this.salt.charCodeAt(0))
+    ).join('');
+    return btoa(xored);
   }
 
-  private decrypt(value: string): string {
+  private decrypt(value: string): string {  
     try {
-      return atob(value);
+      const xored = atob(value).split('').map(char =>
+        String.fromCharCode(char.charCodeAt(0) ^ this.salt.charCodeAt(0))
+      ).join('');
+      return xored.split('').reverse().join('');
     } catch {
       return '';
     }
@@ -61,20 +67,14 @@ class SecretManager {
   public getSecret(key: string): string {
     const hashedKey = this.hashKey(key);
     const encrypted = this.secrets.get(hashedKey);
-    if (!encrypted) return '';
+    if (!encrypted) {
+      console.warn(`Secret not found for key: ${key}`);
+      return '';
+    }
     return this.decrypt(encrypted);
-  }
-
-  public debug(): { [key: string]: string } {
-    const masked: { [key: string]: string } = {};
-    this.secrets.forEach((_, key) => {
-      masked[key] = maskValue('');
-    });
-    return masked;
   }
 }
 
 const manager = SecretManager.getInstance();
 
 export const getSecret = (key: string) => manager.getSecret(key);
-export const debugSecrets = () => manager.debug();
