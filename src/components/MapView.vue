@@ -88,14 +88,30 @@ export default defineComponent({
               (
                 way["highway"](around:10000,${mapInstance.value.getCenter().lat},${mapInstance.value.getCenter().lng});
               );
-              out body;
+              out geom;
               >;
-              out skel qt;
             `
           })
           .then(response => response.json())
           .then(data => {
-            L.geoJSON(data, {
+            // Transform Overpass API data to GeoJSON format
+            const geoJsonData = {
+              type: 'FeatureCollection',
+              features: data.elements
+                .filter(element => element.type === 'way' && element.geometry)
+                .map(way => ({
+                  type: 'Feature',
+                  geometry: {
+                    type: 'LineString',
+                    coordinates: way.geometry.map(node => [node.lon, node.lat])
+                  },
+                  properties: {
+                    highway: way.tags?.highway || 'unknown'
+                  }
+                }))
+            };
+
+            L.geoJSON(geoJsonData, {
               style: (feature) => {
                 return {
                   color: '#FF4444',
@@ -104,6 +120,9 @@ export default defineComponent({
                 };
               }
             }).addTo(trafficLayer.value!);
+          })
+          .catch(error => {
+            console.error('Failed to load traffic data:', error);
           });
         }
       } else {
